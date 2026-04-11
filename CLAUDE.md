@@ -1,325 +1,319 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with
-code in this repository.
+Guidance for Claude Code when working in this repository.
 
-## ⚠️ Migration Freeze (Active — read before doing anything)
+## Repo layout — read this first
 
-This project is mid-migration from a 3-service architecture to a unified
-Next.js app + standalone WebSocket server (Path B). Until the migration is
-complete, the following rules are STRICT.
+`D:\Venejobs\` is a **local-only wrapper repo** (no remote) containing three
+independent nested git repos:
 
-### Actual current structure (what's on disk)
+- `frontend/` — nested git repo, remote `github.com/rivendesu12/Venejobs.git`,
+  active branch `development`. This is the real frontend history.
+- `backend/` — nested git repo with its own history. Legacy Express API.
+- `ws-server/` — TypeScript WebSocket server. [VERIFY: is this its own repo
+  or just files? Update this line when confirmed.]
+
+**These are NOT git submodules.** There is no `.gitmodules` in the parent.
+The parent repo only tracks `CLAUDE.md` and `.claude/`. It does not track
+the nested repos' contents. Do not run `git submodule` commands. When
+committing code changes, `cd` into the relevant nested repo first.
+
+The parent's single commit ("rebuilding") is a wrapper marker, not a
+snapshot of the project. There is no atomic "whole project at time X"
+commit anywhere. Fixing this is deferred to Phase 5.
+
+## ⚠️ Migration Freeze (Active)
+
+Mid-migration from 3-service architecture (Express + Next + ws-server) to
+unified Next.js + standalone ws-server (Path B). Rules are strict until
+the migration completes.
+
+### Current on-disk state
 
 - `backend/` — Express + Sequelize REST API. **FROZEN.** Maintenance only.
   No new routes, controllers, models, migrations, services, or validators.
-  This entire folder will be deleted at the end of the migration.
-- `frontend/` — Next.js 15 app (App Router). Contains both the UI and a
-  partial set of API route handlers under `src/app/api/` (contracts,
-  conversations, messages, proposals, ws-token, upload/presign). Will become
-  the single unified app.
-- `frontend/src/app/api/` — **FROZEN** for new routes until Phase 1 is
-  complete (ORM choice + folder conventions). Existing routes can be
-  bug-fixed but not extended.
-- `frontend/migrations/` — Raw SQL migrations for messaging and contracts
-  (`001_messaging_v2.sql`, `002_contracts.sql`). **FROZEN.** The chosen ORM
-  will own migrations going forward.
-- `frontend/src/lib/` — Shared backend logic for the Next.js side:
-  `assertions.ts` (assertAccess helper), `auth.ts`, `contracts.ts`, `db.ts`.
-  This is where new shared logic will live once Phase 1 establishes
-  conventions.
-- `ws-server/` — Standalone TypeScript WebSocket server. **ACTIVE.** Safe
-  to modify, but schema/auth changes must stay compatible with the upcoming
-  unified schema and the shared `JWT_SECRET`.
+  Deleted at end of migration.
+- `frontend/` — Next.js 16.0.7 App Router. Contains UI plus API route
+  handlers under `src/app/api/` (contracts, conversations, messages,
+  proposals, inbox, upload/presign, ws-token). Becomes the unified app.
+- `frontend/src/app/api/` — **FROZEN** for new routes until Phase 1
+  completes. Bug fixes OK, extensions not OK.
+- `frontend/migrations/` — Raw SQL (`001_messaging_v2.sql`,
+  `002_contracts.sql`). **FROZEN.** Drizzle will own migrations going
+  forward.
+- `frontend/src/lib/` — Shared backend logic for Next.js routes:
+  `assertions.ts` (legacy generic `assertAccess` — deprecated, replace
+  per-resource in Phase 3), `auth.ts`, `contracts.ts`, `db.ts`. New shared
+  logic lives here once Phase 1 conventions are established.
+- `ws-server/` — Standalone TypeScript WebSocket server. Hybrid HTTP+WS on
+  port 4001. **ACTIVE.** Schema/auth changes must stay compatible with the
+  upcoming unified schema and shared `JWT_SECRET`.
 
-### Deleted / do not recreate
+### Deleted, do not recreate
 
-- `frontend/Venejobs/` — Dead nested Next.js prototype with its own git
-  repo, removed in Phase 0. Likely the origin of the stray `localhost:5173`
-  CORS entry in the legacy backend (a Vite-era artifact). If references to
-  it appear in old commits, search results, or backups, they are stale.
-  **Do not restore.**
+- `frontend/Venejobs/` — dead nested Next.js prototype removed in Phase 0.
+  Origin of the `:5173` Vite-era artifacts. Do not restore.
 
-### If asked to add a feature touching frozen areas
+### If a feature touches a frozen area
 
-Stop and tell the user the area is frozen for migration. Do not work around
-the freeze by adding the feature in a different frozen location. Do not
-"temporarily" add it to `backend/` with a plan to port later — that defeats
-the freeze. The correct response is to confirm with the user whether the
-migration step that unblocks this work should happen first.
+Stop and tell the user the area is frozen. Do not work around it by adding
+to a different frozen location. Do not "temporarily" add to `backend/` and
+port later. The correct response is to confirm whether the migration step
+that unblocks the work should happen first.
 
 ### Migration plan
 
-See `MIGRATION.md` for the full Phase 0–5 plan. Do not start a new phase
-without confirming with the user.
+`MIGRATION.md` does not yet exist. It will be created as part of Phase 1.
+Do not start a new phase without confirming with the user.
 
----
+## Phase 1 status — decisions made, scaffolding NOT YET done
 
-## Frontend (`frontend/`) — the future unified app
+Decisions (final, do not relitigate):
+
+- **ORM**: Drizzle
+- **Object storage**: Cloudflare R2 (already wired in existing upload code)
+- **Auth**: keep custom JWT, no library swap
+- **Assertion helpers**: per-resource (`assertConversationAccess`,
+  `assertContractAccess`, etc.), NOT a generic `assertAccess`. Legacy
+  generic helper in `src/lib/assertions.ts` is deprecated, delete in
+  Phase 3.
+- **Schema location**: `frontend/src/lib/schema/<table>.ts`, one file per
+  table
+
+Scaffolding state on disk (verify before trusting):
+
+- `drizzle-orm` installed in `frontend/`. `drizzle-kit` is **NOT**
+  installed.
+- `frontend/drizzle.config.ts` does **NOT** exist.
+- `frontend/src/lib/schema/` does **NOT** exist.
+- `frontend/src/lib/db.ts` exports only `sql` and `listenSql` (postgres.js).
+  No Drizzle `db` export yet.
+- `MIGRATION.md` does not exist.
+
+Phase 1 remaining work (in order):
+
+1. Install `drizzle-kit` as a dev dependency in `frontend/`
+2. Create `frontend/drizzle.config.ts`
+3. Add `db` (Drizzle) export to `frontend/src/lib/db.ts` alongside existing
+   `sql` and `listenSql`
+4. Hand-write `frontend/src/lib/schema/users.ts` from
+   `backend/migrations/20250216132510-create-users.js` + the additive
+   `20251113175644_email_send_failed` migration. The roles FK **column**
+   must be present even though the Drizzle relation to the roles table
+   stays omitted until Phase 3.
+5. Reconcile hand-written `users.ts` against `npx drizzle-kit pull` output
+   until `npx drizzle-kit generate` produces an empty migration (zero drift)
+6. Write the Conventions section into this file
+7. Create `MIGRATION.md`
+
+## Frontend (`frontend/`)
 
 ### Commands
 
 ```bash
 cd frontend
-npm run dev       # Start dev server [VERIFY port — run once and update]
-npm run build     # Production build
-npm run start     # Production server
-npm run lint      # Run ESLint
+npm run dev       # next dev on port 5173 (Vite-era port, fix in Phase 5)
+npm run build     # production build
+npm run start     # next start on port 3001
+npm run lint      # ESLint
 ```
 
-No test suite exists in the frontend.
+No test suite.
 
-### Environment Variables
+**Dev port note**: `:5173` is the actual current Next.js dev port, not just
+a stale CORS allowlist entry. It is set in `package.json` scripts. Do not
+change it until Phase 5 — a lot of existing config assumes it.
 
-Single file: `frontend/.env.local`. Currently includes at least:
-NEXT_PUBLIC_API_URL=http://localhost:4000/api    # points at legacy Express backend
-DATABASE_URL=postgresql://...                     # Neon, used by frontend's own API routes
-JWT_SECRET=...                                    # shared with ws-server
+### Environment variables
 
-[VERIFY: open `frontend/.env.local` and list the actual keys here. Do not
-commit the values, just the key names.]
+Single file: `frontend/.env.local`. [VERIFY: run `cat frontend/.env.local`
+and list key names only, never values, when Phase 1 scaffolding lands.]
+Expected keys at minimum: `DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL`,
+`WS_INTERNAL_SECRET`, and R2 credentials.
 
 ### UI architecture
 
-Uses Next.js App Router (`src/app/` directory). Key UI areas:
+Next.js App Router (`src/app/`). Key areas:
 
-- `src/app/page.jsx` — Landing page
-- `src/app/auth/` — Signup/signin pages
-- `src/app/client/` — Client dashboard routes
-- `src/app/freelancer/` — Freelancer dashboard routes
-- `src/app/components/` — Shared UI components (large tree, organised by
-  domain: `auth/`, `Chat/`, `Client/`, `Freelancer/`, `jobs/`, `messages/`,
-  `profile/`, etc.)
-- `src/app/conversations/`, `src/app/inbox/`, `src/app/messages/` — Messaging
-  UI surfaces (talk to both `src/app/api/conversations|messages` and the
-  ws-server)
-- `src/app/routes.js` — Centralized route path definitions
-- `src/svgIcons/` — Inline SVG components
+- `src/app/page.jsx` — landing
+- `src/app/auth/` — signup, signin
+- `src/app/client/` — client dashboard
+- `src/app/freelancer/` — freelancer dashboard
+- `src/app/components/` — shared UI, organised by domain (`auth/`, `Chat/`,
+  `Client/`, `Freelancer/`, `jobs/`, `messages/`, `profile/`, etc.)
+- `src/app/conversations/`, `src/app/inbox/`, `src/app/messages/` —
+  messaging UI surfaces, talk to `src/app/api/conversations|messages` and
+  the ws-server
+- `src/app/routes.js` — centralized route paths
+- `src/svgIcons/` — inline SVG components
 - `src/hooks/` — `useClickOutside.js`, `useEscapeKey.js`
-- `src/app/hooks/useMessages.ts` — Messaging hook (also mirrored at
-  `src/hooks/useMessages.ts` — duplication to be resolved during migration)
+- `src/app/hooks/useMessages.ts` — messaging hook, mirrored at
+  `src/hooks/useMessages.ts` (duplication resolved in Phase 3)
 
-### Two parallel `lib/` directories — important
+### Two `lib/` directories — do not confuse
 
-There are **two** `lib/` folders in the frontend, and they serve different
-purposes. Do not confuse them:
-
-- `src/app/lib/` (JavaScript) — **API client code** for talking to the
-  legacy Express backend. Contains `api.js` (Axios instance with JWT
-  interceptor) and per-domain modules in `auth/`, `freelancer/`, `jobs/`.
-  Will be deleted as each domain is ported off Express.
-- `src/lib/` (TypeScript) — **Shared backend logic** for the Next.js API
-  routes. Contains `assertions.ts`, `auth.ts`, `contracts.ts`, `db.ts`.
-  This is the *new* location for shared server-side code.
+- `src/app/lib/` (JavaScript) — Axios client code for the legacy Express
+  backend. `api.js` plus per-domain modules (`auth/`, `freelancer/`,
+  `jobs/`). Deleted domain by domain as Express routes are ported.
+- `src/lib/` (TypeScript) — shared server-side logic for Next.js API
+  routes. `assertions.ts`, `auth.ts`, `contracts.ts`, `db.ts`. New
+  server-side code goes here.
 
 ### State management
 
-`src/app/store/` — Zustand stores with `persist` middleware
-(localStorage-backed). Key stores: `userStore.js` (auth/profile),
-`jobStore.js`, `freelancerStore/` (multi-step form state),
+`src/app/store/` — Zustand with `persist` middleware (localStorage).
+Stores: `userStore.js`, `jobStore.js`, `freelancerStore/`,
 `freelancerApiStore.js`, `LoadingStore.js`, `toastStore.js`.
 
 ### Auth
 
 JWT decoded client-side via `jwt-decode`, stored in localStorage and
 cookies. Root middleware redirects unauthenticated users away from
-`/client` and `/freelancer` routes. No refresh token mechanism. The same
-`JWT_SECRET` is used by the ws-server to verify connection tokens issued
-from `src/app/api/ws-token`.
+`/client` and `/freelancer`. No refresh tokens. Same `JWT_SECRET` used by
+ws-server to verify connection tokens issued from `src/app/api/ws-token`.
+
+The JWT payload has a legacy triple-fallback shape (userId-as-object,
+userId-as-number, top-level id). Collapse to a single canonical shape in
+Phase 3, not now.
 
 ### UI libraries
 
-MUI v7, Tailwind CSS, Flowbite React, React Hook Form, React Toastify,
-SweetAlert2, react-datepicker/flatpickr.
+MUI v7, Tailwind, Flowbite React, React Hook Form, React Toastify,
+SweetAlert2, react-datepicker, flatpickr.
 
-### Backend code currently living in the frontend (migration scope)
+### Backend code currently in the frontend (migration scope)
 
-These exist inside `frontend/` but are backend concerns. They will either
-stay (Next.js route handlers, the new home) or be consolidated with ported
-Express code:
+All of these are committed on `origin/development` as of Phase 0 cleanup:
 
-- `src/app/api/contracts/` — Contract CRUD, sign, decline, cancel,
+- `src/app/api/contracts/` — contract CRUD, sign, decline, cancel,
   revisions, approve-revision
-- `src/app/api/conversations/[id]/` — Messages, read, stream (SSE)
-- `src/app/api/messages/` — Message CRUD
-- `src/app/api/proposals/` — Proposals
-- `src/app/api/jobs/[jobId]/proposals/` — Job-scoped proposals
-- `src/app/api/inbox/` — Inbox listing
-- `src/app/api/upload/presign/` — Presigned upload URLs (object storage —
-  decision pending in Phase 1: R2 vs UploadThing vs S3)
-- `src/app/api/ws-token/` — Issues short-lived tokens for ws-server
-- `src/app/api/set-token/` — Auth cookie helper
-- `migrations/001_messaging_v2.sql`, `migrations/002_contracts.sql` — Raw
-  SQL for the above. Will be replaced by ORM-managed migrations.
-- `scripts/migrate.ts` — Runner for the raw SQL migrations above.
+- `src/app/api/conversations/[id]/` — messages, read, stream (SSE)
+- `src/app/api/messages/` — message CRUD
+- `src/app/api/proposals/` — proposals
+- `src/app/api/jobs/[jobId]/proposals/` — job-scoped proposals
+- `src/app/api/inbox/` — inbox listing
+- `src/app/api/upload/presign/` — R2 presigned upload URLs
+- `src/app/api/ws-token/` — short-lived tokens for ws-server
+- `migrations/001_messaging_v2.sql`, `migrations/002_contracts.sql` — raw
+  SQL, replaced by Drizzle in Phase 2+
+- `scripts/migrate.ts` — runner for the raw SQL migrations
 
----
+Known debts to fix in Phase 3 (record, do not fix early):
 
-## Legacy Backend (`backend/`) — FROZEN, being migrated away from
+- `src/app/api/contracts/route.ts` has 6 unwrapped DB writes — wrap in
+  `db.transaction()` per the Phase 1 transaction rule
+- `broadcastContract` errors in the same file are silently swallowed —
+  add structured error logging per the broadcast rule
 
-The following describes the Express backend as it exists today. It is
-accurate as a reference for porting work, but **no new code should be added
-here**. See the freeze rules at the top of this file.
+## Legacy Backend (`backend/`) — FROZEN
+
+Reference only. No new code. See freeze rules above.
 
 ### Commands
 
 ```bash
 cd backend
-npm run dev          # Start dev server with nodemon (port 4000)
-npm run db:migrate   # Run pending Sequelize migrations
-npm run db:seed      # Seed lookup data
-npm run db:reset     # Full reset: undo all migrations, re-migrate, re-seed
-npm run setup:dev    # Install + migrate + seed + start dev server
+npm run dev          # nodemon, port 4000
+npm run db:migrate   # Sequelize migrations
+npm run db:seed      # seed lookup data
+npm run db:reset     # undo, migrate, seed
+npm run setup:dev    # install + migrate + seed + dev
 ```
 
-Copy `.env.example` to `.env` before first run. No real test suite
-(`npm test` just starts the server in test mode).
+Copy `.env.example` to `.env` before first run. No real test suite.
 
-### Environment Variables
-DATABASE_URL=postgresql://...
-PORT=4000
-JWT_SECRET=...                   # must match frontend + ws-server
-JWT_EXPIRES_IN=7d
-ADMIN_EMAIL=admin@venejob.com
-ADMIN_PASSWORD=Admin@123
-BREVO_API_KEY=...                # email service; falls back to console in dev
-RUN_SEEDS=true                   # controls whether seeders run on startup
+### Environment variables
+
+Keys (values not listed): `DATABASE_URL`, `PORT`, `JWT_SECRET`,
+`JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `BREVO_API_KEY`,
+`RUN_SEEDS`.
 
 ### Architecture
 
-**Entry point**: `server.js` — sets up Express middleware (helmet, cors,
-morgan, json parsing), mounts routes, runs auto-migrations (dev/test only),
-upserts the admin user, and initializes project options on every startup.
+Entry: `server.js`. Express + helmet + cors + morgan + json. Runs
+auto-migrations (dev/test), upserts admin user, inits project options on
+startup.
 
-**Request flow**: `routes/` → `controllers/` → `services/` (business
-logic) → `models/` (Sequelize ORM)
-
-**API routes**:
+Request flow: `routes/` → `controllers/` → `services/` → `models/` (Sequelize).
 
 | Prefix | Purpose |
-|--------|---------|
-| `/api/auth/` | Signup, login, email verification (6-digit code, 10 min expiry), password reset |
-| `/api/jobs/` | Job CRUD, status management |
-| `/api/freelancer/` | Freelancer profile management |
-| `/api/proposals/` | Proposal submit, list, accept/reject |
-| `/api/orders/` | Direct orders |
-| `/api/skills/` | Skills |
-| `/api/lookup/` | Reference data (categories, budget types, project sizes, etc.) |
-| `/uploads/` | Static file serving for uploaded files (local disk — will not survive migration to Vercel) |
+|---|---|
+| `/api/auth/` | signup, login, email verification (6-digit, 10 min), password reset |
+| `/api/jobs/` | job CRUD, status |
+| `/api/freelancer/` | freelancer profile |
+| `/api/proposals/` | submit, list, accept, reject |
+| `/api/orders/` | direct orders |
+| `/api/skills/` | skills |
+| `/api/lookup/` | reference data |
+| `/uploads/` | static file serving (local disk, will not survive Vercel) |
 
-**API response shape** — all responses use:
+**Response shape** (preserve during porting):
 
 ```json
 { "success": true, "message": "...", "data": { ... } }
 ```
 
-The unified app should preserve this shape during porting to avoid frontend
-churn.
-
-**Data model hierarchy**:
+**Data model**:
 User → Role (admin/client/freelancer)
 User → FreelancerProfile → [Education, Experience, Language, Skill, Portfolio]
-User → Job (client posts jobs)
-Job → Proposal → Order
+User → Job → Proposal → Order
 
-**Middleware** (`backend/middleware/`):
+**Middleware**: `auth.js` (authenticateToken, optionalAuth),
+`requireRole.js`, `adminOrFreelancer.js`, `sanitizeUser.js`,
+`validateFreelancerProfile.js`.
 
-- `auth.js` — `authenticateToken` (required) and `optionalAuth` JWT verification
-- `requireRole.js` — Factory middleware for role-based access control
-- `adminOrFreelancer.js` — Allows admin or freelancer roles
-- `sanitizeUser.js` — Strips sensitive fields from responses
-- `validateFreelancerProfile.js` — Profile validation
-
-**Validators** (`backend/validators/`): Uses `express-validator`. Rules
-defined per domain (`auth.validator.js`, `job.validator.js`,
-`freelancerProfile.validator.js`), applied as middleware arrays in routes.
-`validationResultHandler.js` converts validation errors to consistent 400
-responses. **Porting note:** these will become Zod schemas in the unified
+**Validators**: `express-validator` per domain. Port to Zod in the unified
 app.
 
-**Services** (`backend/services/`): Business logic between controllers and
-models. Each domain has a service (e.g., `job.service.js` enforces
-budget/size/duration combos; `proposal.service.js` enforces
-one-proposal-per-freelancer-per-job). **Porting note:** preserve the
-business rules verbatim — they encode product decisions, not just data
-access.
+**Services**: business logic between controllers and models. Preserve
+business rules verbatim when porting — they encode product decisions.
 
-**Response messages** (`backend/commonMessages/`): Centralized string
-constants. Always use these rather than inline strings — they will be moved
-into the unified app as part of porting.
+**Response messages**: `backend/commonMessages/`. Use constants, not inline
+strings. Moved into unified app during porting.
 
-**Utilities**:
+**Utilities**: `emailService.js` (Brevo, console fallback),
+`utils/uploads/` (Multer — will not survive Vercel, replaced by R2 in
+Phase 1), `rateLimiter.js`, `logger.js` (Winston), `helpers.js`
+(hashPassword, comparePassword, generateToken), `createAdmin.js`,
+`constants/lookupData.js`.
 
-- `utils/emailService.js` — Brevo (Sendinblue) API; logs to console in dev
-  when `BREVO_API_KEY` is not set
-- `utils/uploads/` — Multer config for profile pictures and job
-  attachments. **Will not survive the migration** — Vercel has a read-only
-  filesystem. Phase 1 picks the object-storage replacement.
-- `utils/rateLimiter.js` — Rate limiting
-- `utils/logger.js` — Winston logger
-- `utils/helpers.js` — `hashPassword`, `comparePassword`, `generateToken`
-- `utils/createAdmin.js` — Upserts admin user on every startup
-- `constants/lookupData.js` — Hardcoded lookup values used by seeders
+**Auth**: passwords require 8+ chars with uppercase, lowercase, number,
+special char. JWT contains `userId` or `id`, 7 day expiry.
 
-**Auth details**:
+**Database**: Postgres (Neon) via Sequelize. Dev/test auto-runs pending
+migrations. `RUN_SEEDS=true` triggers seeders. SSL enabled in all envs.
 
-- Password requirements: 8+ chars, uppercase, lowercase, number, special character
-- JWT payload contains `userId` (or `id`), expires in 7 days
-
-**Database**: PostgreSQL (Neon) via Sequelize. Migrations in
-`backend/migrations/`, seeders in `backend/seeders/`. Dev/test environments
-auto-run pending migrations on startup. `RUN_SEEDS=true` triggers seeder
-execution. SSL is enabled in all environments (configured in
-`config/config.js`).
-
-**CORS**: Allows `localhost:3000`, `localhost:5173`, `venejob.com` domains,
-and all `*.vercel.app` preview URLs. Credentials enabled. The `5173` entry
-is a leftover from a previous Vite-based frontend (the now-deleted
-`frontend/Venejobs/` prototype) and can be removed once that is confirmed
-unreferenced.
-
----
+**CORS**: allows `localhost:3000`, `localhost:5173`, `venejob.com`, and
+`*.vercel.app` previews. Credentials enabled.
 
 ## WebSocket Server (`ws-server/`)
 
-Standalone TypeScript WebSocket server. Handles real-time messaging.
-Originally planned as SSE through Next.js route handlers, but implemented
-as a separate WS service. Has its own `package.json`, `tsconfig.json`, and
-`db/queries.ts`. Connects to the same Postgres database as the main app.
+Standalone TypeScript WS server. Hybrid HTTP + WS on port 4001. Own
+`package.json`, `tsconfig.json`, `db/queries.ts`. Connects to the same Neon
+Postgres as the main app.
 
-### Environment Variables
+### Environment variables
 
-`ws-server/.env.example` lists the expected keys. At minimum:
-DATABASE_URL=postgresql://...    # same Neon DB as the main app
-JWT_SECRET=...                   # MUST match frontend + backend
-
-[VERIFY: open `ws-server/.env.example` and confirm exact key names.]
+[VERIFY: confirm key names from `ws-server/.env.example`.] Expected:
+`DATABASE_URL`, `JWT_SECRET` (must equal frontend's), `WS_INTERNAL_SECRET`
+(shared with frontend for internal broadcast HTTP calls).
 
 ### Auth flow
 
-1. Authenticated user calls `frontend/src/app/api/ws-token` to get a
-   short-lived token.
-2. Client opens a WebSocket connection presenting the token.
-3. ws-server verifies the JWT using the shared `JWT_SECRET`.
+1. Authenticated user hits `frontend/src/app/api/ws-token` for a short-lived
+   token
+2. Client opens WS connection with the token
+3. ws-server verifies using shared `JWT_SECRET`
+
+### Internal broadcast
+
+Next.js routes fan out real-time events by POSTing to ws-server's
+`/internal/broadcast` endpoint, authenticated with `WS_INTERNAL_SECRET`.
+Broadcast happens after DB commits, never inside a transaction. Broadcast
+failures are best-effort but must be logged, never silently swallowed.
 
 ### Migration role
 
 Stays as a separate service post-migration. WebSockets do not belong in
-Next.js route handlers on Vercel. Will eventually share the unified ORM
-schema with the main app, either via a workspace package or a synced file
-— decision deferred to Phase 4 of the migration.
-
----
-
-## Phase 1 decisions still pending
-
-These will be resolved before any porting work begins. Until they are,
-treat any answer to "which ORM / which storage / which auth library" as
-unanswered:
-
-- **ORM**: TBD (likely Drizzle, but not committed)
-- **Object storage**: TBD (R2 / UploadThing / S3)
-- **Auth approach**: keeping custom JWT (not switching to Auth.js / Lucia
-  mid-migration)
-
-When any of these are decided, update this file in the same commit.
+Next.js route handlers on Vercel. Schema sharing between frontend and
+ws-server is a Phase 4 decision (workspace package vs synced file).
