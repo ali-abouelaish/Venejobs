@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /d/Venejobs/Venejobs-main/app/freelancer-setup*/)"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsx:*)",
+      "Bash(ls -la /d/Venejobs/Venejobs-main/src/app/api/conversations/[id]/)",
+      "Bash(grep -r \"listenSql\\\\|postgres\\\\|sql\\\\`\" /d/Venejobs/Venejobs-main/src --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(cat /d/Venejobs/venejobs-backend-development/routes/*.js)",
+      "Bash(cat /d/Venejobs/Venejobs-main/src/app/api/conversations/[id]/messages/route.ts)",
+      "Bash(grep -r \"sequelize.query\\\\|sql\\\\`\\\\|queryInterface\" /d/Venejobs/venejobs-backend-development --include=\"*.js\")",
+      "Bash(npx tsc:*)",
+      "Bash(node -e ':*)"
+    ]
+  }
+}

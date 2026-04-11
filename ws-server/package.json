@@ -1,0 +1,21 @@
+{
+  "name": "venejobs-ws-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx --env-file=.env index.ts",
+    "start": "tsx --env-file=.env index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "postgres": "^3.4.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.15.0"
+  }
+}
