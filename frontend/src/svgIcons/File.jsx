@@ -1,0 +1,60 @@
+import React from "react";
+
+export const File = ({ size = 16, color = "currentColor", className = "" }) => {
+  return (
+    <svg
+      width="12"
+      height="14"
+      viewBox="0 0 12 14"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <g clipPath="url(#clip0_1_28595)">
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M7.85394 0.898438H3.31001C1.90372 0.898438 0.691406 1.9882 0.691406 3.33326V10.3282C0.691406 11.749 1.82449 12.8818 3.31001 12.8818H8.76644C10.1734 12.8818 11.3133 11.6739 11.3133 10.3282V4.34336L7.85394 0.898438Z"
+          fill="#F1F1F1"
+          stroke="black"
+          strokeWidth="0.89702"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M7.67578 0.890625V2.79003C7.67578 3.7172 8.46055 4.4694 9.42971 4.47135C10.3293 4.47331 11.2492 4.47396 11.3114 4.47004"
+          fill="#F1F1F1"
+        />
+        <path
+          d="M7.67578 0.890625V2.79003C7.67578 3.7172 8.46055 4.4694 9.42971 4.47135C10.3293 4.47331 11.2492 4.47396 11.3114 4.47004"
+          stroke="black"
+          strokeWidth="0.89702"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M7.54159 9.25342H3.85547"
+          stroke="black"
+          strokeWidth="0.89702"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.1476 6.02002H3.85547"
+          stroke="black"
+          strokeWidth="0.89702"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+      <defs>
+        <clipPath id="clip0_1_28595">
+          <rect width="11.8462" height="14" fill="white" />
+        </clipPath>
+      </defs>
+    </svg>
+  );
+};
+
+export default File;

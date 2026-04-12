@@ -1,0 +1,126 @@
+@import "tailwindcss";
+@import "flatpickr/dist/flatpickr.min.css";
+
+@theme {
+  --color-primary: #01237c;
+  --color-secondary: #5bbb7b;
+  --color-heading: #333333;
+  --color-paragraph: #666666;
+  --color-footerclient: #111111;
+  --color-footerfreelance: #1a463a;
+  --color-lightborder: #f5f5f5;
+}
+
+@keyframes fadeInPremium {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+body {
+  height: 100%;
+}
+
+.animate-fadeInPremium {
+  animation: fadeInPremium 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Main calendar container */
+.custom-calendar {
+  border-radius: 16px !important;
+  padding: 20px !important;
+  border: none !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Month heading */
+.react-datepicker__current-month {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  margin-bottom: 10px !important;
+  text-align: center !important;
+}
+
+/* Header layout */
+.react-datepicker__header {
+  background-color: white !important;
+  border-bottom: none !important;
+  padding-top: 10px !important;
+}
+
+/* Navigation arrows */
+.react-datepicker__navigation {
+  top: 20px !important;
+}
+
+/* Make arrows minimal */
+.react-datepicker__navigation-icon::before {
+  border-color: #000 !important;
+  border-width: 2px 2px 0 0 !important;
+  width: 8px;
+  height: 8px;
+}
+
+/* Weekday labels */
+.react-datepicker__day-name {
+  color: #444 !important;
+  font-weight: 600 !important;
+}
+
+/* Day cells */
+.custom-day {
+  padding: 8px !important;
+  margin: 4px !important;
+  border-radius: 8px !important;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+/* Hover */
+.custom-day:hover {
+  background-color: rgba(0, 112, 244, 0.1) !important;
+}
+
+/* Selected date - BLUE like your design */
+.react-datepicker__day--selected {
+  background-color: #0066ff !important;
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+/* Outside days */
+.react-datepicker__day--outside-month {
+  color: #ccc !important;
+}
+
+/* Sundays in RED (matching your sample) */
+.custom-day:nth-child(1) {
+  color: #d9534f !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.flatpickr-calendar {
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+}
+
+.flatpickr-day.selected {
+  background: #5bbb7b;
+  border-color: #5bbb7b;
+}
