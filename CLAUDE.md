@@ -106,6 +106,22 @@ Phase 1 remaining work (in order):
 6. Write the Conventions section into this file
 7. Create `MIGRATION.md`
 
+## Database layer (as of Phase 2)
+
+**Source of truth:** `backend/migrations/*.js` (Sequelize, frozen backend). The DB is owned here.
+
+**Frontend migrations:** `frontend/migrations/*.sql` adds messaging_v2 and contracts tables on top of the Sequelize-owned base schema. These are applied manually via `frontend/scripts/migrate.ts`'s runner.
+
+**⚠️ `frontend/scripts/migrate.ts` contains dead `CREATE TABLE` statements** for `proposals`, `conversations`, and `messages` that use *different column names* than the real Sequelize-owned tables (e.g. `offered_price` vs real `proposed_amount`, `estimated_days` vs real `estimated_duration`, status enum `declined` vs real `rejected`). Do NOT trust migrate.ts as a schema reference. Always check `backend/migrations/` for proposals/jobs/users.
+
+**Drizzle:** Scaffolded in Phase 1 at `frontend/src/lib/db/{schema.ts,drizzle.ts}` + `drizzle.config.ts`. **Not yet used by any route.** The current `schema.ts` was built from `scripts/migrate.ts` and is therefore **wrong for `proposals`**. Phase 1.5 will regenerate it via `drizzle-kit pull` against the live DB. Until then, keep using the raw `postgres` client from `src/lib/db`.
+
+**`src/lib/db/` layout:** directory (not a flat file). Entry is `src/lib/db/index.ts` (the raw `postgres` client). `drizzle.ts` exports a Drizzle instance but nothing imports it yet.
+
+**Known tsc debt (pre-existing, do not fix mid-phase):**
+- `src/app/api/conversations/[id]/stream/route.ts:45` — `sql.unlisten` doesn't exist
+- `src/app/api/proposals/route.ts:48,53` — TransactionSql call-signature quirk
+
 ## Frontend (`frontend/`)
 
 ### Commands

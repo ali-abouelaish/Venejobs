@@ -1,0 +1,12 @@
+{
+  "name": "venejobs",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": ["frontend", "backend", "ws-server"],
+  "scripts": {
+    "dev": "concurrently -n frontend,backend,ws -c cyan,yellow,magenta \"npm -w frontend run dev\" \"npm -w backend run dev\" \"npm -w ws-server run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
