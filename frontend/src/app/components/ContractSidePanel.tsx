@@ -342,6 +342,7 @@ export default function ContractSidePanel({
         }
         const data = (await res.json()) as { contract: ContractData };
         setContract(data.contract);
+        onContractLoaded?.(data.contract);
         return data.contract;
       } catch {
         toast.error(`Failed to ${actionKey}`);
@@ -350,7 +351,7 @@ export default function ContractSidePanel({
         setBusyAction(null);
       }
     },
-    [contractId],
+    [contractId, onContractLoaded],
   );
 
   const handleSign = useCallback(

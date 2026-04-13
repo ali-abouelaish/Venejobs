@@ -180,6 +180,29 @@ export function useMessages(
           .reverse()
           .map(normalizeInitialMessage);
         setMessages(normalized);
+
+        // Immediately mark all messages as read via REST (don't wait for WS to connect)
+        const lastMsg = [...normalized].reverse().find((m) => !m.is_deleted);
+        if (lastMsg && currentUserId) {
+          fetch(`/api/conversations/${conversationId}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message_id: lastMsg.id }),
+          })
+            .then(() => {
+              if (cancelled) return;
+              // Emit synthetic read_receipt so the page refetches inbox
+              onEventRef.current?.({
+                type: 'read_receipt',
+                messageIds: normalized
+                  .filter((m) => m.sender_id !== currentUserId && !m.is_deleted)
+                  .map((m) => m.id),
+                userId: currentUserId,
+                conversationId: conversationId!,
+              });
+            })
+            .catch(() => undefined);
+        }
       })
       .catch(() => undefined);
 
@@ -383,10 +406,11 @@ export function useMessages(
 
         const { message: raw } = (await res.json()) as { message: Partial<Message> };
         const real = normalizeInitialMessage(raw);
-        // Replace optimistic with real; WS delivery will deduplicate
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? real : m)),
-        );
+        // Remove any WS-delivered copy that raced ahead, then replace optimistic
+        setMessages((prev) => {
+          const withoutDup = prev.filter((m) => m.id !== real.id);
+          return withoutDup.map((m) => (m.id === tempId ? real : m));
+        });
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
       }

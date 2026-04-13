@@ -117,12 +117,11 @@ function AttachmentView({
       </a>
     );
   }
+  const downloadHref = `/api/download?url=${encodeURIComponent(att.url)}&name=${encodeURIComponent(att.file_name)}`;
   return (
     <a
-      href={att.url}
+      href={downloadHref}
       download={att.file_name}
-      target="_blank"
-      rel="noopener noreferrer"
       className="flex items-center gap-2 px-3 py-2 mt-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors text-current"
     >
       <Paperclip size={14} className="shrink-0" />

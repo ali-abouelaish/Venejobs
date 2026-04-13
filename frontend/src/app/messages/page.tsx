@@ -71,9 +71,9 @@ export default function MessagesPage() {
     fetchInbox();
   }, [fetchInbox]);
 
-  // Fallback poll every 10s (in case WS drops)
+  // Fallback poll every 3s to catch new conversations quickly
   useEffect(() => {
-    const id = setInterval(fetchInbox, 10_000);
+    const id = setInterval(fetchInbox, 3_000);
     return () => clearInterval(id);
   }, [fetchInbox]);
 
@@ -116,6 +116,9 @@ export default function MessagesPage() {
           }
           break;
         }
+        case 'read_receipt':
+          refetchInboxSoon();
+          break;
         case 'message_deleted':
           refetchInboxSoon();
           break;
@@ -150,6 +153,15 @@ export default function MessagesPage() {
     setSidePanelContractId(null);
     if (mobileView === 'contract') setMobileView('conversation');
   }
+
+  const handleContractLoaded = useCallback((c: import('@/app/hooks/useMessages').ContractData) => {
+    setActiveContractInfo({
+      id: c.id,
+      price: c.currentRevision?.price ?? '0',
+      currency: c.currentRevision?.currency ?? 'USD',
+      signed: c.status === 'accepted',
+    });
+  }, []);
 
   function handleOpenContact() {
     const isMobile = window.innerWidth < 1024;
@@ -301,15 +313,7 @@ export default function MessagesPage() {
                     wsConnected={wsConnected}
                     refreshCounter={contractRefreshCounter}
                     onClose={handleCloseContractPanel}
-                    onContractLoaded={(c) => {
-                      const signed = c.status === 'accepted';
-                      setActiveContractInfo({
-                        id: c.id,
-                        price: c.currentRevision?.price ?? '0',
-                        currency: c.currentRevision?.currency ?? 'USD',
-                        signed,
-                      });
-                    }}
+                    onContractLoaded={handleContractLoaded}
                   />
                 </div>
               )}
@@ -350,15 +354,7 @@ export default function MessagesPage() {
                     wsConnected={wsConnected}
                     refreshCounter={contractRefreshCounter}
                     onClose={handleCloseContractPanel}
-                    onContractLoaded={(c) => {
-                      const signed = c.status === 'accepted';
-                      setActiveContractInfo({
-                        id: c.id,
-                        price: c.currentRevision?.price ?? '0',
-                        currency: c.currentRevision?.currency ?? 'USD',
-                        signed,
-                      });
-                    }}
+                    onContractLoaded={handleContractLoaded}
                   />
                 </div>
               )}

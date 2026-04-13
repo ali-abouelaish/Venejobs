@@ -5,17 +5,24 @@ const createJobValidator = require("../validators/job.validator");
 const { authenticateToken } = require("../middleware/auth");
 const { jobUpload } = require("../utils/uploads/jobUpload");
 
+const handleJobUpload = (req, res, next) => {
+    jobUpload.single("attachment")(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, message: err.message });
+        next();
+    });
+};
+
 router.post(
     "/create",
     authenticateToken,
-    jobUpload.single("attachment"),
+    handleJobUpload,
     createJobValidator,
     JobController.createJob
 );
 router.put(
     "/:id",
     authenticateToken,
-    jobUpload.single("attachment"),
+    handleJobUpload,
     createJobValidator,
     JobController.updateJob
 );

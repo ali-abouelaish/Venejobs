@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ClientLayout from '@/app/layout/ClientLayout';
 
 interface Proposal {
@@ -37,32 +38,75 @@ export default function ProposalsPage({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = use(params);
+  const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [actionError, setActionError] = useState('');
+
+  async function loadProposals(): Promise<void> {
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/proposals`);
+      if (res.status === 403) {
+        setError('You do not have permission to view these proposals.');
+        return;
+      }
+      if (!res.ok) {
+        setError('Failed to load proposals.');
+        return;
+      }
+      const data = await res.json() as { proposals: Proposal[] };
+      setProposals(data.proposals ?? []);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load(): Promise<void> {
-      try {
-        const res = await fetch(`/api/jobs/${jobId}/proposals`);
-        if (res.status === 403) {
-          setError('You do not have permission to view these proposals.');
-          return;
-        }
-        if (!res.ok) {
-          setError('Failed to load proposals.');
-          return;
-        }
-        const data = await res.json() as { proposals: Proposal[] };
-        setProposals(data.proposals ?? []);
-      } catch {
-        setError('Network error. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    loadProposals();
   }, [jobId]);
+
+  async function handleAccept(proposalId: number): Promise<void> {
+    setActionLoading(proposalId);
+    setActionError('');
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/accept`, { method: 'POST' });
+      const data = await res.json() as { conversationId?: string; error?: string };
+      if (!res.ok) {
+        setActionError(data.error ?? 'Failed to accept proposal.');
+        return;
+      }
+      await loadProposals();
+      if (data.conversationId) {
+        router.push(`/messages`);
+      }
+    } catch {
+      setActionError('Network error. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleDecline(proposalId: number): Promise<void> {
+    setActionLoading(proposalId);
+    setActionError('');
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/decline`, { method: 'POST' });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setActionError(data.error ?? 'Failed to decline proposal.');
+        return;
+      }
+      await loadProposals();
+    } catch {
+      setActionError('Network error. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   return (
     <ClientLayout>
@@ -92,6 +136,10 @@ export default function ProposalsPage({
 
         {error && (
           <p style={{ color: '#c0392b', fontSize: '14px' }}>{error}</p>
+        )}
+
+        {actionError && (
+          <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '8px' }}>{actionError}</p>
         )}
 
         {!loading && !error && proposals.length === 0 && (
@@ -185,22 +233,60 @@ export default function ProposalsPage({
                 </span>
               </div>
 
-              {/* Chat link */}
-              {p.conversation_id && (
-                <Link
-                  href={`/conversations/${p.conversation_id}`}
-                  style={{
-                    display: 'inline-block',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: 'var(--color-primary)',
-                    textDecoration: 'none',
-                    alignSelf: 'flex-start',
-                  }}
-                >
-                  Open conversation →
-                </Link>
-              )}
+              {/* Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {p.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleAccept(p.id)}
+                      disabled={actionLoading === p.id}
+                      style={{
+                        background: actionLoading === p.id ? 'var(--color-paragraph)' : 'var(--color-secondary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 18px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: actionLoading === p.id ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {actionLoading === p.id ? 'Processing…' : 'Accept'}
+                    </button>
+                    <button
+                      onClick={() => handleDecline(p.id)}
+                      disabled={actionLoading === p.id}
+                      style={{
+                        background: 'transparent',
+                        color: '#c0392b',
+                        border: '1px solid #c0392b',
+                        borderRadius: '8px',
+                        padding: '8px 18px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: actionLoading === p.id ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </>
+                )}
+
+                {p.conversation_id && (
+                  <Link
+                    href={`/messages`}
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--color-primary)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Open conversation →
+                  </Link>
+                )}
+              </div>
             </div>
           ))}
         </div>

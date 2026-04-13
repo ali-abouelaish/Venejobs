@@ -98,6 +98,16 @@ export async function POST(
         SET status = 'accepted', updated_at = now()
         WHERE id = ${contractId}::uuid
       `;
+      await tx`
+        UPDATE proposals
+        SET status = 'accepted', updated_at = now()
+        WHERE id = (
+          SELECT p.id FROM proposals p
+          JOIN conversations c ON c.proposal_id = p.id
+          WHERE c.id = ${contract.conversation_id}::uuid
+          LIMIT 1
+        )
+      `;
     }
   });
 

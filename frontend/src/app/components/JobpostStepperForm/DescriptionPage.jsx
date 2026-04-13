@@ -88,6 +88,7 @@ const DescriptionPage = ({ nextStep, prevStep, setStep, fromReview }) => {
 
             <input
               type="file"
+              accept="application/pdf"
               {...register("attachment", {
                 validate: {
                   isPdf: (files) => {
