@@ -4,23 +4,34 @@ Guidance for Claude Code when working in this repository.
 
 ## Repo layout — read this first
 
-`D:\Venejobs\` is a **local-only wrapper repo** (no remote) containing three
-independent nested git repos:
+`D:\Venejobs\` is the **main monorepo**. Single git repo, single remote:
+`https://github.com/ali-abouelaish/Venejobs.git`, default branch `main`.
 
-- `frontend/` — nested git repo, remote `github.com/rivendesu12/Venejobs.git`,
-  active branch `development`. This is the real frontend history.
-- `backend/` — nested git repo with its own history. Legacy Express API.
-- `ws-server/` — TypeScript WebSocket server. [VERIFY: is this its own repo
-  or just files? Update this line when confirmed.]
+The old structure (wrapper repo + nested `frontend/` submodule pointing at
+`rivendesu12/Venejobs.git` + independent `backend/` / `ws-server/` repos)
+no longer exists. The frontend submodule was absorbed into the monorepo
+(commits `8714bdf` "Remove frontend submodule pointer" and `b4a60b5`
+"Absorb frontend submodule into monorepo"). Do not run `git submodule`
+commands — there are no submodules.
 
-**These are NOT git submodules.** There is no `.gitmodules` in the parent.
-The parent repo only tracks `CLAUDE.md` and `.claude/`. It does not track
-the nested repos' contents. Do not run `git submodule` commands. When
-committing code changes, `cd` into the relevant nested repo first.
+Workspaces (not nested repos):
 
-The parent's single commit ("rebuilding") is a wrapper marker, not a
-snapshot of the project. There is no atomic "whole project at time X"
-commit anywhere. Fixing this is deferred to Phase 5.
+- `frontend/` — Next.js app (UI + newer API routes).
+- `backend/` — Express + Sequelize legacy API. See freeze rules below.
+- `ws-server/` — standalone TypeScript WebSocket server.
+- `migrations/`, `scripts/` — raw SQL migrations and utilities for the
+  frontend-owned tables (messaging, contracts).
+
+npm workspaces are wired up at the root `package.json`. From the root:
+
+```bash
+npm install        # installs deps for all three workspaces
+npm run dev        # runs all three via concurrently (see README)
+```
+
+Commits go in this single repo. Do **not** `cd` into a subfolder to commit
+— `git` at the root handles everything. `git add` from the root; paths are
+relative to the root (e.g. `git add frontend/src/app/...`).
 
 ## ⚠️ Migration Freeze (Active)
 
@@ -45,9 +56,10 @@ the migration completes.
   `assertions.ts` (legacy generic `assertAccess` — deprecated, replace
   per-resource in Phase 3), `auth.ts`, `contracts.ts`, `db.ts`. New shared
   logic lives here once Phase 1 conventions are established.
-- `ws-server/` — Standalone TypeScript WebSocket server. Hybrid HTTP+WS on
-  port 4001. **ACTIVE.** Schema/auth changes must stay compatible with the
-  upcoming unified schema and shared `JWT_SECRET`.
+- `ws-server/` — Standalone TypeScript WebSocket server. WS on port 4002,
+  internal broadcast HTTP on port 4001. **ACTIVE.** Schema/auth changes
+  must stay compatible with the upcoming unified schema and shared
+  `JWT_SECRET`.
 
 ### Deleted, do not recreate
 
@@ -199,7 +211,7 @@ SweetAlert2, react-datepicker, flatpickr.
 
 ### Backend code currently in the frontend (migration scope)
 
-All of these are committed on `origin/development` as of Phase 0 cleanup:
+All of these are committed on `origin/main` as of Phase 0 cleanup:
 
 - `src/app/api/contracts/` — contract CRUD, sign, decline, cancel,
   revisions, approve-revision
@@ -304,15 +316,19 @@ migrations. `RUN_SEEDS=true` triggers seeders. SSL enabled in all envs.
 
 ## WebSocket Server (`ws-server/`)
 
-Standalone TypeScript WS server. Hybrid HTTP + WS on port 4001. Own
-`package.json`, `tsconfig.json`, `db/queries.ts`. Connects to the same Neon
-Postgres as the main app.
+Standalone TypeScript WS server. WS on port 4002, internal broadcast HTTP
+on port 4001. Own `package.json`, `tsconfig.json`, `db/queries.ts`.
+Connects to the same Neon Postgres as the main app. Part of the monorepo
+workspace — no separate git history.
 
 ### Environment variables
 
-[VERIFY: confirm key names from `ws-server/.env.example`.] Expected:
-`DATABASE_URL`, `JWT_SECRET` (must equal frontend's), `WS_INTERNAL_SECRET`
-(shared with frontend for internal broadcast HTTP calls).
+Keys from `ws-server/.env.example`: `DATABASE_URL`, `WS_SECRET` (must
+match frontend's), `WS_INTERNAL_SECRET` (shared with frontend for internal
+broadcast HTTP calls), `WS_PORT` (4002), `WS_INTERNAL_PORT` (4001). The
+frontend issues short-lived WS tokens signed with `JWT_SECRET`; ws-server
+verifies them using the same secret, so `JWT_SECRET` must also match
+frontend.
 
 ### Auth flow
 
@@ -331,5 +347,6 @@ failures are best-effort but must be logged, never silently swallowed.
 ### Migration role
 
 Stays as a separate service post-migration. WebSockets do not belong in
-Next.js route handlers on Vercel. Schema sharing between frontend and
-ws-server is a Phase 4 decision (workspace package vs synced file).
+Next.js route handlers on Vercel. ws-server lives in the monorepo as a
+workspace. Schema sharing between frontend and ws-server is a Phase 4
+decision (internal workspace package vs synced file).
