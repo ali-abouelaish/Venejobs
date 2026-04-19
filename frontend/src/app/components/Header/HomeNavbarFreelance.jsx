@@ -68,7 +68,7 @@ export default function HomeNavbarFreelance() {
 
   const NavLinks = [
     { label: "Find Work", href: Routes.freelancer.page },
-    { label: "Deliver Work", href: "" },
+    { label: "Deliver Work", href: "/freelancer/AllContract" },
     { label: "Manage Finances", href: "" },
   ];
 
@@ -79,14 +79,14 @@ export default function HomeNavbarFreelance() {
       className: "text-3xl sm:text-2xl text-paragraph px-4 font-medium",
     },
     { label: "Find Work", href: Routes.freelancer.page },
-    { label: "Deliver Work", href: "" },
+    { label: "Deliver Work", href: "/freelancer/AllContract" },
     { label: "Manage Finances", href: "" },
     { label: "Message", href: Routes.messages, badge: unreadCount },
   ];
 
   return (
     <>
-      <div className="w-full relative">
+      <div className="w-full relative border-b border-gray-200">
         <div className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto">
           <div className="flex justify-between items-center py-5">
 

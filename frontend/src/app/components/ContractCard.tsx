@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, ChevronRight } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import type { ContractData } from '@/app/hooks/useMessages';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
@@ -12,13 +12,13 @@ interface Props {
 
 // ─── Status styles ──────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: '#F3F4F6', text: '#6B7280', label: 'Draft' },
-  pending_review: { bg: '#FEF3C7', text: '#92400E', label: 'Pending Review' },
-  revision_requested: { bg: '#DBEAFE', text: '#1E40AF', label: 'Revision Requested' },
-  accepted: { bg: '#D1FAE5', text: '#065F46', label: 'Signed' },
-  declined: { bg: '#FEE2E2', text: '#991B1B', label: 'Declined' },
-  cancelled: { bg: '#FEE2E2', text: '#991B1B', label: 'Cancelled' },
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string; accent: string }> = {
+  draft:              { bg: '#F3F4F6', text: '#6B7280', label: 'Draft',              accent: '#9CA3AF' },
+  pending_review:     { bg: '#FEF3C7', text: '#92400E', label: 'Pending Review',     accent: '#F59E0B' },
+  revision_requested: { bg: '#DBEAFE', text: '#1E40AF', label: 'Revision Requested', accent: '#3B82F6' },
+  accepted:           { bg: '#D1FAE5', text: '#065F46', label: 'Signed',             accent: '#10B981' },
+  declined:           { bg: '#FEE2E2', text: '#991B1B', label: 'Declined',           accent: '#EF4444' },
+  cancelled:          { bg: '#FEE2E2', text: '#991B1B', label: 'Cancelled',          accent: '#EF4444' },
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
@@ -41,31 +41,50 @@ export default function ContractCard({ contract, onOpen }: Props) {
   return (
     <button
       onClick={() => onOpen(contract.id)}
-      className="my-1 mx-auto w-full max-w-[420px] flex items-center gap-3 px-4 py-3 border border-[#D1D5DB] bg-white rounded-xl shadow-sm hover:shadow-md hover:border-[#1E3A5F] transition-all text-left"
-      style={{ minHeight: '72px' }}
+      className="my-2 mx-auto w-full max-w-[480px] bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow text-left flex"
     >
-      <div className="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center shrink-0">
-        <FileText size={18} className="text-[#1E3A5F]" />
-      </div>
+      {/* Left status accent bar */}
+      <div className="w-1 shrink-0 self-stretch" style={{ backgroundColor: s.accent }} />
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[13px] font-semibold text-[#111827] truncate flex-1">
-            {rev.title}
-          </span>
-          <span
-            className="px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
-            style={{ background: s.bg, color: s.text }}
+      {/* Content */}
+      <div className="flex-1 p-4">
+        {/* Header row: icon + "Contract" label + status badge */}
+        <div className="flex items-center gap-2">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: s.bg }}
           >
-            {s.label}
+            <FileText size={14} style={{ color: s.text }} />
+          </div>
+          <span className="text-xs uppercase text-gray-500 tracking-wide font-medium">Contract</span>
+          <span className="ml-auto shrink-0">
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: s.bg, color: s.text }}
+            >
+              {s.label}
+            </span>
           </span>
         </div>
-        <p className="text-[12px] text-[#6B7280]">
+
+        {/* Title */}
+        <p className="text-base font-semibold text-gray-900 mt-2 truncate">{rev.title}</p>
+
+        {/* Price */}
+        <p className="text-lg font-semibold text-gray-900 mt-1">
           {formatPrice(rev.price, rev.currency)}
         </p>
-      </div>
 
-      <ChevronRight size={16} className="text-[#9CA3AF] shrink-0" />
+        {/* Meta */}
+        <p className="text-xs text-gray-500 mt-1">
+          by {contract.createdByName}
+        </p>
+
+        {/* Footer button */}
+        <div className="mt-3 w-full text-sm font-medium text-blue-600 hover:bg-blue-50 py-2 rounded-lg text-center transition-colors">
+          View details &rarr;
+        </div>
+      </div>
     </button>
   );
 }

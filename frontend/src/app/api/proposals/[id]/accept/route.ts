@@ -24,6 +24,14 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Check if job is still accepting hires
+    const [job] = await sql<{ status: string }[]>`
+      SELECT status FROM jobs WHERE id = ${proposal.job_id} LIMIT 1
+    `;
+    if (job && (job.status === 'filled' || job.status === 'closed')) {
+      return NextResponse.json({ error: 'Job is no longer accepting hires' }, { status: 409 });
+    }
+
     if (proposal.status === 'accepted') {
       return NextResponse.json({ error: 'Proposal already accepted' }, { status: 409 });
     }

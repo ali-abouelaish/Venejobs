@@ -30,14 +30,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         p.id                  AS proposal_id,
         p.status              AS proposal_status,
         p.proposed_amount     AS offered_price,
-        j.title               AS job_title,
+        COALESCE(j.title, 'Direct message') AS job_title,
         json_build_object(
           'id',
-            CASE WHEN p.freelancer_id = ${userId} THEN client.id     ELSE freelancer.id     END,
+            CASE
+              WHEN p.id IS NOT NULL THEN
+                CASE WHEN p.freelancer_id = ${userId} THEN client.id ELSE freelancer.id END
+              ELSE
+                CASE WHEN c.client_id = ${userId} THEN direct_fl.id ELSE direct_cl.id END
+            END,
           'name',
-            CASE WHEN p.freelancer_id = ${userId} THEN client.name   ELSE freelancer.name   END,
+            CASE
+              WHEN p.id IS NOT NULL THEN
+                CASE WHEN p.freelancer_id = ${userId} THEN client.name ELSE freelancer.name END
+              ELSE
+                CASE WHEN c.client_id = ${userId} THEN direct_fl.name ELSE direct_cl.name END
+            END,
           'avatar',
-            CASE WHEN p.freelancer_id = ${userId} THEN client.profile_picture ELSE freelancer.profile_picture END
+            CASE
+              WHEN p.id IS NOT NULL THEN
+                CASE WHEN p.freelancer_id = ${userId} THEN client.profile_picture ELSE freelancer.profile_picture END
+              ELSE
+                CASE WHEN c.client_id = ${userId} THEN direct_fl.profile_picture ELSE direct_cl.profile_picture END
+            END
         )                     AS other_participant,
         CASE
           WHEN last_msg.sent_at IS NULL THEN NULL
@@ -59,10 +74,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             )
         )                     AS unread_count
       FROM conversations c
-      JOIN proposals p      ON p.id  = c.proposal_id
-      JOIN jobs j           ON j.id  = p.job_id
-      JOIN users freelancer ON freelancer.id = p.freelancer_id
-      JOIN users client     ON client.id     = j.client_id
+      LEFT JOIN proposals p      ON p.id  = c.proposal_id
+      LEFT JOIN jobs j           ON j.id  = p.job_id
+      LEFT JOIN users freelancer ON freelancer.id = p.freelancer_id
+      LEFT JOIN users client     ON client.id     = j.client_id
+      LEFT JOIN users direct_cl  ON direct_cl.id  = c.client_id
+      LEFT JOIN users direct_fl  ON direct_fl.id  = c.freelancer_id
       LEFT JOIN LATERAL (
         SELECT body, sent_at, is_deleted, sender_id
         FROM messages
@@ -72,6 +89,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ) last_msg ON true
       WHERE p.freelancer_id = ${userId}
          OR j.client_id     = ${userId}
+         OR c.client_id     = ${userId}
+         OR c.freelancer_id = ${userId}
       ORDER BY COALESCE(last_msg.sent_at, c.created_at) DESC
       LIMIT ${limit}
       OFFSET ${offset}

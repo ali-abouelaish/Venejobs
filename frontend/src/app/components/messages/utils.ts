@@ -1,3 +1,11 @@
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? '';
+
+export function avatarUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${BASE_URL}${path.replace(/^\//, '')}`;
+}
+
 export function initials(name: string | null | undefined): string {
   if (!name) return '?';
   return name

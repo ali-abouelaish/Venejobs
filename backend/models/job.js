@@ -41,8 +41,15 @@ module.exports = (sequelize, DataTypes) => {
             },
             budget_amount: DataTypes.FLOAT,
 
+            hire_count: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                defaultValue: 1,
+                validate: { min: 1, max: 10 },
+            },
+
             status: {
-                type: DataTypes.ENUM("draft", "published", "paused", "closed"),
+                type: DataTypes.ENUM("draft", "published", "paused", "filled", "closed"),
                 allowNull: false,
                 defaultValue: "draft"
             },

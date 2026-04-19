@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
+import { broadcastToWs } from '@/lib/ws';
 
 interface SignBody {
   typedName: string;
@@ -108,6 +109,37 @@ export async function POST(
           LIMIT 1
         )
       `;
+
+      // Auto-fill: check if job has reached hire_count accepted contracts
+      const [jobRow] = await tx<{ job_id: number; hire_count: number; job_status: string }[]>`
+        SELECT j.id AS job_id, j.hire_count, j.status::text AS job_status
+        FROM contracts c
+        JOIN conversations conv ON conv.id = c.conversation_id
+        JOIN proposals p ON p.id = conv.proposal_id
+        JOIN jobs j ON j.id = p.job_id
+        WHERE c.id = ${contractId}::uuid
+      `;
+
+      if (jobRow) {
+        const [{ accepted_count }] = await tx<{ accepted_count: number }[]>`
+          SELECT COUNT(DISTINCT c2.id)::int AS accepted_count
+          FROM contracts c2
+          JOIN conversations conv2 ON conv2.id = c2.conversation_id
+          JOIN proposals p2 ON p2.id = conv2.proposal_id
+          WHERE p2.job_id = ${jobRow.job_id} AND c2.status = 'accepted'
+        `;
+
+        if (accepted_count >= jobRow.hire_count && jobRow.job_status !== 'filled') {
+          await tx`
+            UPDATE jobs SET status = 'filled', updated_at = NOW()
+            WHERE id = ${jobRow.job_id}
+          `;
+          await tx`
+            UPDATE proposals SET status = 'rejected', updated_at = NOW()
+            WHERE job_id = ${jobRow.job_id} AND status = 'pending'
+          `;
+        }
+      }
     }
   });
 
@@ -117,6 +149,26 @@ export async function POST(
   }
 
   await broadcastContract(contract.conversation_id, 'contract_updated', fullContract);
+
+  // If contract is now accepted, broadcast job_filled to current conversation
+  // TODO: broadcast to every conversation linked to a now-rejected proposal
+  if (fullContract.status === 'accepted') {
+    const [jobCheck] = await sql<{ job_id: number; job_status: string }[]>`
+      SELECT j.id AS job_id, j.status::text AS job_status
+      FROM contracts c
+      JOIN conversations conv ON conv.id = c.conversation_id
+      JOIN proposals p ON p.id = conv.proposal_id
+      JOIN jobs j ON j.id = p.job_id
+      WHERE c.id = ${contractId}::uuid
+    `;
+    if (jobCheck?.job_status === 'filled') {
+      await broadcastToWs(contract.conversation_id, {
+        type: 'job_filled',
+        jobId: jobCheck.job_id,
+        conversationId: contract.conversation_id,
+      });
+    }
+  }
 
   return NextResponse.json({ contract: fullContract });
 }

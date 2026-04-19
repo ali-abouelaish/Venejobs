@@ -116,7 +116,7 @@ const JobDetail = ({ job }) => {
         <div className="flex flex-col gap-4 pb-8">
           <h2 className="font-semibold text-base lg:text-lg text-heading">Attachments</h2>
           <a
-            href={`${process.env.NEXT_PUBLIC_BASE_URL}${job.attachment}`}
+            href={`${process.env.NEXT_PUBLIC_BASE_URL}${job.attachment.replace(/^\//, '')}`}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 border border-[#44444414] rounded px-3 py-2 w-fit hover:bg-gray-50"

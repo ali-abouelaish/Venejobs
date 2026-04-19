@@ -1,5 +1,5 @@
 'use client';
-import { Search, SlidersHorizontal, MoreHorizontal } from 'lucide-react';
+import { Search, MoreHorizontal } from 'lucide-react';
 import type { Conversation } from './types';
 import ChatItem from './ChatItem';
 import { ChatListSkeleton } from './LoadingSkeleton';
@@ -30,25 +30,24 @@ export default function ChatList({
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-        <span className="text-[15px] font-semibold text-[#111827]">Chats</span>
-        <MoreHorizontal size={20} className="text-[#6B7280] cursor-pointer" />
+      <div className="flex items-center justify-between px-4 py-3 shrink-0">
+        <span className="text-sm font-semibold text-gray-700">Chats</span>
+        <MoreHorizontal size={16} className="text-gray-500 cursor-pointer hover:text-gray-700" />
       </div>
 
       {/* Search */}
-      <div className="px-3 pb-3 shrink-0">
-        <div className="relative flex items-center h-9 border border-[#E5E7EB] rounded-lg bg-[#F9FAFB]">
-          <Search size={14} className="absolute left-3 text-[#9CA3AF] pointer-events-none" />
+      <div className="px-4 pb-3 shrink-0">
+        <div className="relative flex items-center">
+          <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search"
-            className="w-full h-full bg-transparent pl-8 pr-8 text-[13px] text-[#111827] placeholder:text-[#9CA3AF] outline-none"
+            placeholder="Search conversations"
+            className="w-full bg-gray-50 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none border-0 focus:ring-1 focus:ring-gray-300"
           />
-          <SlidersHorizontal size={14} className="absolute right-3 text-[#6B7280] pointer-events-none" />
         </div>
       </div>
 
@@ -58,16 +57,16 @@ export default function ChatList({
           <ChatListSkeleton />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <p className="text-[13px] text-[#6B7280] text-center">Failed to load. Try again.</p>
+            <p className="text-sm text-gray-500 text-center">Failed to load. Try again.</p>
             <button
               onClick={onRetry}
-              className="text-[13px] text-[#1E3A5F] font-semibold underline"
+              className="text-sm text-blue-600 font-semibold hover:underline"
             >
               Retry
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-[13px] text-[#6B7280] text-center py-10">No conversations found.</p>
+          <p className="text-sm text-gray-500 text-center py-10">No conversations found.</p>
         ) : (
           filtered.map((conv) => (
             <ChatItem

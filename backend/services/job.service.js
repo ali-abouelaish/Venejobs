@@ -95,7 +95,7 @@ async function createJob(userId, data) {
 
 async function updateJobStatus(jobId, status, userId) {
 
-    const allowedStatuses = ["draft", "published", "paused", "closed"];
+    const allowedStatuses = ["draft", "published", "paused", "filled", "closed"];
 
     if (!allowedStatuses.includes(status)) {
         throw new Error(JOB_MESSAGES.INVALID_STATUS);

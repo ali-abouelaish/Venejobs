@@ -29,7 +29,7 @@ export default function Page() {
   const { freelanceDetails, getPersonalDetails, personalDetailLoading } =
     freelancerApiStore();
 
-  const { name, country } = freelanceDetails || {};
+  const { name, country, profile_picture, id: userId } = freelanceDetails || {};
   const { freelancerProfile } = freelanceDetails || {};
 
   // fetch only once
@@ -64,7 +64,7 @@ export default function Page() {
     <FreelancerLayout>
       <ShowDetailsWrapper>
         <Suspense fallback={null}>
-          <ShowDetailsHeader name={name} country={country} />
+          <ShowDetailsHeader name={name} country={country} profilePicture={profile_picture} userId={userId} />
           <div className="flex flex-col lg:flex-row border-b border-gray-200">
             {/* LEFT */}
             <div className="w-full lg:w-[30%] lg:border-r border-gray-200">

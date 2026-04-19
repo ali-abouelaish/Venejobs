@@ -1,26 +1,31 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, Clock, Briefcase, Maximize2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { ChevronLeft, Maximize2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import ClientLayout from '@/app/layout/ClientLayout';
+import FreelancerLayout from '@/app/layout/FreelancerLayout';
 import userApiStore from '@/app/store/userStore';
 import type { Conversation, InboxRow } from '@/app/components/messages/types';
 import { normalizeInboxRow } from '@/app/components/messages/types';
 import type { WsIncoming } from '@/app/hooks/useMessages';
 import ChatList from '@/app/components/messages/ChatList';
 import ContactPanel from '@/app/components/messages/ContactPanel';
-import { initials, formatChatTime } from '@/app/components/messages/utils';
+import { formatChatTime } from '@/app/components/messages/utils';
+import Avatar from '@/app/components/Avatar';
 import ChatPane from '@/app/components/ChatPane';
 import ContractSidePanel from '@/app/components/ContractSidePanel';
 
 type MobileView = 'list' | 'conversation' | 'contact' | 'contract';
 
-export default function MessagesPage() {
+function MessagesPageInner() {
+  const searchParams = useSearchParams();
   const { user } = userApiStore() as { user: { id: number; name: string; role_name?: string; role_id?: number } | null };
 
+  const preselect = searchParams.get('conversation');
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(preselect);
   const [searchQuery, setSearchQuery] = useState('');
-  const [mobileView, setMobileView] = useState<MobileView>('list');
+  const [mobileView, setMobileView] = useState<MobileView>(preselect ? 'conversation' : 'list');
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showContactPanel, setShowContactPanel] = useState(true);
@@ -164,7 +169,7 @@ export default function MessagesPage() {
   }, []);
 
   function handleOpenContact() {
-    const isMobile = window.innerWidth < 1024;
+    const isMobile = window.innerWidth < 768;
     if (isMobile) {
       setMobileView('contact');
     } else {
@@ -173,7 +178,7 @@ export default function MessagesPage() {
   }
 
   function handleCloseContact() {
-    const isMobile = window.innerWidth < 1024;
+    const isMobile = window.innerWidth < 768;
     if (isMobile) {
       setMobileView('conversation');
     } else {
@@ -187,29 +192,20 @@ export default function MessagesPage() {
     setMobileView('list');
   }
 
-  return (
-    <ClientLayout>
-      <div className="bg-[#F3F4F6] px-4 py-6 lg:px-8" style={{ minHeight: 'calc(100vh - 72px)' }}>
-        {/* Page title */}
-        <h1 className="text-[28px] lg:text-[32px] font-bold text-[#111827] mb-5 max-w-[1200px] mx-auto">
-          Messages
-        </h1>
+  const Layout = user?.role_id === 3 ? FreelancerLayout : ClientLayout;
 
-        {/* Card */}
-        <div
-          className="bg-white overflow-hidden mx-auto lg:rounded-2xl"
-          style={{
-            maxWidth: '1500px',
-            height: '930px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          }}
-        >
-          <div className="flex h-full">
-            {/* LEFT — Chat list */}
+  return (
+    <Layout>
+      <div className="min-h-screen bg-[#F7F8FA]">
+        <div className="md:max-w-[1280px] md:mx-auto md:px-6 md:py-6">
+          <div
+            className="flex bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-200 overflow-hidden h-screen md:h-[calc(100vh-120px)]"
+          >
+            {/* LEFT -- Chat list */}
             <div
-              className={`flex-col border-r border-[#E5E7EB] bg-white h-full overflow-hidden
-                ${mobileView === 'list' ? 'flex' : 'hidden'} lg:flex`}
-              style={{ width: '325px', minWidth: '325px', flexShrink: 0 }}
+              className={`flex-col border-r border-gray-200 bg-white h-full overflow-hidden
+                ${mobileView === 'list' ? 'flex' : 'hidden'} md:flex`}
+              style={{ width: '280px', minWidth: '280px', flexShrink: 0 }}
             >
               <ChatList
                 conversations={conversations}
@@ -223,55 +219,44 @@ export default function MessagesPage() {
               />
             </div>
 
-            {/* MIDDLE — Conversation */}
+            {/* MIDDLE -- Conversation */}
             <div
               className={`flex-col flex-1 min-w-0 h-full
-                ${mobileView === 'conversation' ? 'flex' : 'hidden'} lg:flex`}
+                ${mobileView === 'conversation' ? 'flex' : 'hidden'} md:flex`}
             >
               {selectedConversation && currentUserId !== null ? (
                 <div className="flex flex-col h-full bg-white min-w-0">
                   {/* Header */}
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 border-b border-[#E5E7EB] shrink-0"
-                    style={{ minHeight: '64px' }}
-                  >
+                  <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 shrink-0">
                     <button
                       onClick={handleBack}
-                      className="lg:hidden shrink-0 text-[#6B7280] hover:text-[#111827] mr-1"
+                      className="md:hidden shrink-0 text-gray-400 hover:text-gray-600 mr-1"
                     >
-                      <ChevronLeft size={22} />
+                      <ChevronLeft size={20} />
                     </button>
 
-                    <div className="w-10 h-10 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden">
-                      {selectedConversation.other_avatar ? (
-                        <img
-                          src={selectedConversation.other_avatar}
-                          alt={selectedConversation.other_name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        initials(selectedConversation.other_name)
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <span className="text-[15px] font-semibold text-[#111827] truncate">
-                        {selectedConversation.other_name}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <span className="text-base font-semibold text-gray-900 truncate">
+                        {selectedConversation.job_title}
                       </span>
-                      <div className="flex items-center gap-1.5 text-[#6B7280] text-[12px] flex-wrap">
-                        <Clock size={12} className="shrink-0" />
-                        <span className="shrink-0">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Avatar
+                          id={selectedConversation.other_id}
+                          name={selectedConversation.other_name}
+                          src={selectedConversation.other_avatar}
+                          size={28}
+                        />
+                        <span className="truncate">{selectedConversation.other_name}</span>
+                        <span className="text-gray-300">&#183;</span>
+                        <span className="text-xs text-gray-500 shrink-0">
                           {formatChatTime(selectedConversation.last_message_sent_at) || 'No activity yet'}
                         </span>
-                        <span>·</span>
-                        <Briefcase size={12} className="shrink-0" />
-                        <span className="truncate">{selectedConversation.job_title}</span>
                       </div>
                     </div>
 
                     <button
                       onClick={handleOpenContact}
-                      className="shrink-0 text-[#6B7280] hover:text-[#111827]"
+                      className="shrink-0 text-gray-400 hover:text-gray-600"
                     >
                       <Maximize2 size={18} />
                     </button>
@@ -290,8 +275,8 @@ export default function MessagesPage() {
                   </div>
                 </div>
               ) : (
-                <div className="hidden lg:flex flex-1 items-center justify-center bg-white">
-                  <p className="text-[#6B7280] text-[15px]">Select a conversation</p>
+                <div className="hidden md:flex flex-1 items-center justify-center bg-white">
+                  <p className="text-gray-500 text-sm">Select a conversation</p>
                 </div>
               )}
             </div>
@@ -302,7 +287,7 @@ export default function MessagesPage() {
               currentUserId !== null &&
               user && (
                 <div
-                  className={`flex-col flex-1 min-w-0 h-full lg:hidden
+                  className={`flex-col flex-1 min-w-0 h-full md:hidden
                     ${mobileView === 'contract' ? 'flex' : 'hidden'}`}
                 >
                   <ContractSidePanel
@@ -321,7 +306,7 @@ export default function MessagesPage() {
             {/* Mobile contact panel */}
             {selectedConversation && (
               <div
-                className={`flex-col bg-white border-l border-[#E5E7EB] h-full overflow-hidden lg:hidden
+                className={`flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden md:hidden
                   ${mobileView === 'contact' ? 'flex' : 'hidden'}`}
                 style={{ width: '100%', minWidth: '260px', flexShrink: 0 }}
               >
@@ -337,13 +322,13 @@ export default function MessagesPage() {
               </div>
             )}
 
-            {/* RIGHT (desktop) — Contract side panel takes precedence over ContactPanel */}
+            {/* RIGHT (desktop) -- Contract side panel takes precedence over ContactPanel */}
             {selectedConversation &&
               currentUserId !== null &&
               user &&
               sidePanelContractId && (
                 <div
-                  className="hidden lg:flex flex-col bg-white border-l border-[#E5E7EB] h-full overflow-hidden"
+                  className="hidden md:flex flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden"
                   style={{ width: '525px', minWidth: '525px', flexShrink: 0 }}
                 >
                   <ContractSidePanel
@@ -359,12 +344,12 @@ export default function MessagesPage() {
                 </div>
               )}
 
-            {/* RIGHT (desktop) — Contact panel (hidden when contract side panel is open) */}
+            {/* RIGHT (desktop) -- Contact panel (hidden when contract side panel is open) */}
             {selectedConversation && !sidePanelContractId && (
               <div
-                className={`hidden flex-col bg-white border-l border-[#E5E7EB] h-full overflow-hidden
-                  ${showContactPanel ? 'lg:flex' : 'lg:hidden'}`}
-                style={{ width: '350px', minWidth: '350px', flexShrink: 0 }}
+                className={`hidden flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden
+                  ${showContactPanel ? 'md:flex' : 'md:hidden'}`}
+                style={{ width: '320px', minWidth: '320px', flexShrink: 0 }}
               >
                 <ContactPanel
                   conversation={selectedConversation}
@@ -380,6 +365,14 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
-    </ClientLayout>
+    </Layout>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense>
+      <MessagesPageInner />
+    </Suspense>
   );
 }

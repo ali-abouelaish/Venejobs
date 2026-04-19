@@ -22,6 +22,7 @@ const MultiStepForm = () => {
     shouldUnregister: false,
     defaultValues: {
       skills: [],
+      hire_count: "1",
     },
   });
 
@@ -52,6 +53,7 @@ const MultiStepForm = () => {
       formData.append("experience_level", data.experience_level);
       formData.append("budget_type", data.budget_type);
       formData.append("budget_amount", Number(data.budget_amount));
+      formData.append("hire_count", Number(data.hire_count));
 
       if (data.skills?.length) {
         const skillsPayload = data.skills.map((skill) => ({

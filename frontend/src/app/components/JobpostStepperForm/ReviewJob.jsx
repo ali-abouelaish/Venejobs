@@ -157,6 +157,11 @@ const ReviewJob = ({ prevStep, setStep, setFromReview }) => {
               Budget Amount
             </h2>
             <p className="text-paragraph text-base">{data.budget_amount}</p>
+
+            <h2 className="font-semibold text-[clamp(1.25rem,2.5vw,1.3rem)] text-heading">
+              Freelancers to Hire
+            </h2>
+            <p className="text-paragraph text-base">{data.hire_count}</p>
           </Row>
           <div className="px-4 lg:px-10">
             {/* BUTTONS */}

@@ -1,9 +1,4 @@
-import React from "react";
-
-export default function Skills() {
-
-  const skills = ["Landing Page", "Web Design", "Prototype", "UX/UI Design", "JavaScript", "WebDesign", "App Design"];
-
+export default function Skills({ skills = [] }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {skills.length ? (

@@ -105,14 +105,21 @@ export default function JobSearch() {
               className="flex flex-col p-5 border rounded border-gray-200 gap-4 hover:border-secondary transition-colors cursor-pointer"
             >
               {/* title and image */}
-              <div className="flex items-center gap-2">
-                <Image
-                  src={"/logo.png"}
-                  height={"32"}
-                  width={"38"}
-                  alt="Logo of company"
-                />
-                <h2 className="text-base md:text-lg text-[#3B3A40]">Adobe</h2>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={"/logo.png"}
+                    height={"32"}
+                    width={"38"}
+                    alt="Logo of company"
+                  />
+                  <h2 className="text-base md:text-lg text-[#3B3A40]">Adobe</h2>
+                </div>
+                {item.status === 'filled' && (
+                  <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Position filled
+                  </span>
+                )}
               </div>
 
               {/* job title and time ago */}

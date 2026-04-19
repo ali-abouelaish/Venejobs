@@ -33,7 +33,7 @@ export default function HomeNavbar() {
   const NavLinks = [
     {
       label: "Find Talent",
-      href: "",
+      href: "/client/freelancerList",
       icon: "",
     },
     {
@@ -68,7 +68,7 @@ export default function HomeNavbar() {
     },
     {
       label: "Find Talent",
-      href: "",
+      href: "/client/freelancerList",
       icon: "",
     },
     {
@@ -95,7 +95,7 @@ export default function HomeNavbar() {
 
   return (
     <>
-      <div className="w-full relative ">
+      <div className="w-full relative border-b border-gray-200">
         <div
           className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto"
         >

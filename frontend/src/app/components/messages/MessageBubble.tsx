@@ -1,6 +1,6 @@
 'use client';
 import type { Message } from './types';
-import { initials, formatMessageTime } from './utils';
+import { initials, formatMessageTime, avatarUrl } from './utils';
 
 type Props = {
   message: Message;
@@ -15,9 +15,9 @@ export default function MessageBubble({ message, isOwn }: Props) {
         className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-[11px] font-semibold overflow-hidden"
         style={{ background: isOwn ? '#1E3A5F' : '#6B7280' }}
       >
-        {message.sender_avatar ? (
+        {avatarUrl(message.sender_avatar) ? (
           <img
-            src={message.sender_avatar}
+            src={avatarUrl(message.sender_avatar)!}
             alt={message.sender_name ?? ''}
             className="w-full h-full object-cover"
           />

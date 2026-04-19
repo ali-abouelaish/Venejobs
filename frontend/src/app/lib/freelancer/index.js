@@ -5,3 +5,4 @@ export * from "./portfolios.api";
 export * from "./languages.api";
 export * from "./education.api";
 export * from "./experience.api";
+export * from "./browse.api";

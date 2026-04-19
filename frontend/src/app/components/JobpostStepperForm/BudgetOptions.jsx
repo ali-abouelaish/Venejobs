@@ -180,6 +180,29 @@ const BudgetOptions = ({ nextStep, prevStep, setStep, fromReview }) => {
                 </div>
 
               </div>
+
+              {/* HIRE COUNT */}
+              <div className="flex flex-col gap-4">
+                <h2 className="text-xl xl:text-2xl text-heading font-semibold leading-9">
+                  Number of freelancers to hire
+                </h2>
+                <p className="text-gray-500 text-sm xl:text-base font-medium tracking-wide">
+                  Most jobs hire 1 freelancer. Set higher if you need a team.
+                </p>
+
+                <div className="w-48">
+                  <select
+                    {...register("hire_count")}
+                    className="w-full appearance-none border border-[#D0D5DD] bg-white px-4 py-3 rounded-lg text-base text-heading focus:outline-none focus:border-primary"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ export type Conversation = {
   proposal_status: string;
   offered_price: number | null;
   job_title: string;
+  other_id: number;
   other_name: string;
   other_avatar: string | null;
   last_message_body: string | null;
@@ -29,6 +30,7 @@ export function normalizeInboxRow(row: InboxRow): Conversation {
     proposal_status: row.proposal_status,
     offered_price: row.offered_price,
     job_title: row.job_title,
+    other_id: row.other_participant?.id ?? 0,
     other_name: row.other_participant?.name ?? '',
     other_avatar: row.other_participant?.avatar ?? null,
     last_message_body: row.last_message?.body ?? null,
