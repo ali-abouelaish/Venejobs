@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import FreelancerLayout from "@/app/layout/FreelancerLayout";
 import ProposalForm from "@/app/components/ProposalForm";
@@ -28,7 +28,7 @@ function timeAgo(dateStr) {
   return `${days} days ago`;
 }
 
-export default function JobDetailPage() {
+function JobDetailContent() {
   const [showForm, setShowForm] = useState(false);
   const [proposalDone, setProposalDone] = useState(false);
   const searchParams = useSearchParams();
@@ -67,7 +67,8 @@ export default function JobDetailPage() {
     : [];
 
   const isOwner = user && String(user.id) === String(job.client_id);
-  const canApply = jobId && user && !isOwner;
+  const isFilled = job.status === 'filled';
+  const canApply = jobId && user && !isOwner && !isFilled;
 
   return (
     <FreelancerLayout>
@@ -82,12 +83,17 @@ export default function JobDetailPage() {
               <h1 className="text-3xl lg:text-[40px] font-semibold text-heading leading-tight">
                 {job.title}
               </h1>
-              <div className="flex flex-wrap gap-4 text-paragraph text-sm font-medium">
+              <div className="flex flex-wrap items-center gap-4 text-paragraph text-sm font-medium">
                 <span>Posted {timeAgo(job.created_at)}</span>
                 <span>·</span>
                 <span>{formatCategory(job.category)}</span>
                 <span>·</span>
                 <span className="capitalize">{job.status}</span>
+                {job.status === 'filled' && (
+                  <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Position filled
+                  </span>
+                )}
               </div>
             </div>
 
@@ -217,6 +223,12 @@ export default function JobDetailPage() {
               </div>
             )}
 
+            {isFilled && !isOwner && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded px-4 py-3 text-sm font-semibold">
+                This position has been filled and is no longer accepting proposals.
+              </div>
+            )}
+
             {isOwner && (
               <p className="text-paragraph text-sm italic">This is your job posting.</p>
             )}
@@ -224,6 +236,12 @@ export default function JobDetailPage() {
 
           {/* ── RIGHT: Sidebar ── */}
           <div className="lg:w-64 flex flex-col gap-8 lg:border-l border-gray-200 lg:pl-8">
+            {isFilled && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded px-4 py-3 text-sm font-semibold text-center">
+                Position filled
+              </div>
+            )}
+
             {canApply && !proposalDone && (
               <button
                 onClick={() => { setShowForm(true); window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }}
@@ -272,5 +290,19 @@ export default function JobDetailPage() {
         </div>
       </div>
     </FreelancerLayout>
+  );
+}
+
+export default function JobDetailPage() {
+  return (
+    <Suspense fallback={
+      <FreelancerLayout>
+        <div className="w-full max-w-[90%] xl:max-w-[1240px] mx-auto my-20 text-center text-paragraph">
+          Loading job details…
+        </div>
+      </FreelancerLayout>
+    }>
+      <JobDetailContent />
+    </Suspense>
   );
 }
