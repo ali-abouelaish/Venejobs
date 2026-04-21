@@ -33,6 +33,7 @@ function MessagesPageInner() {
   // Contract side panel
   const [sidePanelContractId, setSidePanelContractId] = useState<string | null>(null);
   const [contractRefreshCounter, setContractRefreshCounter] = useState(0);
+  const [contractsListVersion, setContractsListVersion] = useState(0);
   const sidePanelContractIdRef = useRef<string | null>(null);
   useEffect(() => {
     sidePanelContractIdRef.current = sidePanelContractId;
@@ -129,12 +130,14 @@ function MessagesPageInner() {
           break;
         case 'contract_updated':
           refetchInboxSoon();
+          setContractsListVersion((v) => v + 1);
           if (sidePanelContractIdRef.current === event.contractId) {
             setContractRefreshCounter((v) => v + 1);
           }
           break;
         case 'new_contract':
           refetchInboxSoon();
+          setContractsListVersion((v) => v + 1);
           break;
       }
     },
@@ -316,6 +319,8 @@ function MessagesPageInner() {
                   contractCurrency={activeContractInfo?.currency}
                   contractSigned={activeContractInfo?.signed}
                   contractId={activeContractInfo?.id}
+                  activeContractId={sidePanelContractId}
+                  contractEventVersion={contractsListVersion}
                   onOpenContract={handleOpenContract}
                   onClose={handleCloseContact}
                 />
@@ -357,6 +362,8 @@ function MessagesPageInner() {
                   contractCurrency={activeContractInfo?.currency}
                   contractSigned={activeContractInfo?.signed}
                   contractId={activeContractInfo?.id}
+                  activeContractId={sidePanelContractId}
+                  contractEventVersion={contractsListVersion}
                   onOpenContract={handleOpenContract}
                   onClose={handleCloseContact}
                 />

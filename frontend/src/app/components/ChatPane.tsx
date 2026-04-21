@@ -18,7 +18,6 @@ import {
 } from '@/app/hooks/useMessages';
 import Avatar from '@/app/components/Avatar';
 import ContractCard from '@/app/components/ContractCard';
-import ContractComposer from '@/app/components/ContractComposer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -419,7 +418,6 @@ export default function ChatPane({
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [showContractComposer, setShowContractComposer] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -765,14 +763,6 @@ export default function ChatPane({
             <Paperclip size={20} />
           </button>
 
-          <button
-            onClick={() => setShowContractComposer(true)}
-            title="Send a contract"
-            className="text-gray-500 hover:text-gray-700 shrink-0 p-1"
-          >
-            <FileText size={20} />
-          </button>
-
           <textarea
             ref={textareaRef}
             rows={1}
@@ -797,19 +787,6 @@ export default function ChatPane({
           </button>
         </div>
       </div>
-
-      {/* Contract composer overlay */}
-      {showContractComposer && (
-        <ContractComposer
-          mode="create"
-          conversationId={conversationId}
-          onSuccess={(contract) => {
-            userScrolledUp.current = false;
-            onOpenContract?.(contract.id);
-          }}
-          onClose={() => setShowContractComposer(false)}
-        />
-      )}
     </div>
   );
 }

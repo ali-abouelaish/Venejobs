@@ -25,6 +25,8 @@ export async function GET(): Promise<NextResponse> {
     created_at: string;
     updated_at: string;
     other_name: string;
+    other_id: number | null;
+    conversation_id: string;
     job_title: string;
   }[]>`
     SELECT
@@ -37,6 +39,8 @@ export async function GET(): Promise<NextResponse> {
       ct.created_at,
       ct.updated_at,
       other_user.name AS other_name,
+      other_user.id AS other_id,
+      ct.conversation_id::text,
       COALESCE(j.title, 'Direct contract') AS job_title
     FROM contracts ct
     JOIN conversations conv ON conv.id = ct.conversation_id

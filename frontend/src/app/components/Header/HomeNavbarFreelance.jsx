@@ -68,7 +68,6 @@ export default function HomeNavbarFreelance() {
 
   const NavLinks = [
     { label: "Find Work", href: Routes.freelancer.page },
-    { label: "Deliver Work", href: "/freelancer/AllContract" },
     { label: "Manage Finances", href: "" },
   ];
 
@@ -79,7 +78,6 @@ export default function HomeNavbarFreelance() {
       className: "text-3xl sm:text-2xl text-paragraph px-4 font-medium",
     },
     { label: "Find Work", href: Routes.freelancer.page },
-    { label: "Deliver Work", href: "/freelancer/AllContract" },
     { label: "Manage Finances", href: "" },
     { label: "Message", href: Routes.messages, badge: unreadCount },
   ];

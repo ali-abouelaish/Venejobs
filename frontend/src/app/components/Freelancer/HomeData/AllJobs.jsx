@@ -8,6 +8,7 @@ import PaginationFreelance from "../../Pagination/PaginationFreelance";
 import JobCardSkeleton from "../../Skeletons/JobCardSkeleton";
 import Image from "next/image";
 import SvgIcon from "../../Utility/SvgIcon";
+import ContractsData from "../AllContractFreelancer/ContractsData";
 
 export default function AllJobs() {
   const router = useRouter();
@@ -55,6 +56,9 @@ export default function AllJobs() {
     {
       label: "My feed",
     },
+    {
+      label: "Active Contracts",
+    },
   ];
 
   const formatBudgetType = (budgettype) => {
@@ -101,13 +105,15 @@ export default function AllJobs() {
         </div>
       </div>
 
+      {activeTab === 1 && <ContractsData searchQuery="" />}
+
       {/* ✅ FIRST LOAD SKELETON ONLY */}
-      {!hasFetched &&
+      {activeTab === 0 && !hasFetched &&
         loading &&
         Array.from({ length: 5 }).map((_, i) => <JobCardSkeleton key={i} />)}
 
       {/* ✅ EMPTY STATE */}
-      {hasFetched && !loading && (!jobs || jobs.length === 0) && (
+      {activeTab === 0 && hasFetched && !loading && (!jobs || jobs.length === 0) && (
         <div className="flex justify-center mt-12">
           <h2 className="text-xl font-semibold text-gray-600">
             No Jobs Posted Yet
@@ -116,7 +122,7 @@ export default function AllJobs() {
       )}
 
       {/* ✅ JOB LIST */}
-      {jobs?.map((item) => (
+      {activeTab === 0 && jobs?.map((item) => (
         <div
           key={item.id}
           onClick={() => router.push(`${Routes.freelancer.jobdetail}?id=${item.id}`)}
@@ -200,7 +206,7 @@ export default function AllJobs() {
         </div>
       ))}
 
-      {hasFetched && totalpagenum > 1 && (
+      {activeTab === 0 && hasFetched && totalpagenum > 1 && (
         <PaginationFreelance
           page={page}
           totalPages={totalpagenum}
