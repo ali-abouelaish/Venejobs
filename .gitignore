@@ -33,3 +33,6 @@ Thumbs.db
 
 # Claude local settings
 .claude/settings.local.json
+
+# Accidentally committed git backup (purged from history)
+frontend/Venejobs-backup.git/
