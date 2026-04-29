@@ -37,13 +37,24 @@ export async function getMyProposalForJob(
   `;
   const row = rows[0];
   if (!row) return null;
+
+  let conversationId = row.conversation_id;
+  if (!conversationId) {
+    const [conv] = await sql<{ id: string }[]>`
+      INSERT INTO conversations (proposal_id)
+      VALUES (${row.id})
+      RETURNING id
+    `;
+    conversationId = conv.id;
+  }
+
   return {
     id: row.id,
     status: row.status,
     proposedAmount: row.proposed_amount,
     estimatedDuration: row.estimated_duration,
     createdAt: row.created_at,
-    conversationId: row.conversation_id,
+    conversationId,
   };
 }
 

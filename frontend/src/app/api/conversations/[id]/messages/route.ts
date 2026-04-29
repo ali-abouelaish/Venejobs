@@ -173,7 +173,35 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
 
     const nextCursor = rows.length === limit ? (rows[rows.length - 1]?.id ?? null) : null;
 
-    return NextResponse.json({ messages, nextCursor });
+    const metaRows = await sql<
+      {
+        proposal_id: number | null;
+        freelancer_id: number | null;
+        client_id: number | null;
+      }[]
+    >`
+      SELECT
+        c.proposal_id,
+        COALESCE(p.freelancer_id, c.freelancer_id) AS freelancer_id,
+        COALESCE(j.client_id, c.client_id)         AS client_id
+      FROM conversations c
+      LEFT JOIN proposals p ON p.id = c.proposal_id
+      LEFT JOIN jobs j      ON j.id = p.job_id
+      WHERE c.id = ${id}::uuid
+      LIMIT 1
+    `;
+    const meta = metaRows[0] ?? { proposal_id: null, freelancer_id: null, client_id: null };
+
+    return NextResponse.json({
+      messages,
+      nextCursor,
+      conversation: {
+        id,
+        proposal_id: meta.proposal_id,
+        freelancer_id: meta.freelancer_id,
+        client_id: meta.client_id,
+      },
+    });
   } catch (err) {
     console.error('[GET /api/conversations/[id]/messages]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -257,6 +285,52 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     }
 
     const senderId = session.user.id;
+
+    // Pre-response gate: in a proposal-bound conversation, the freelancer may
+    // only send one message before the client has replied. Once the client has
+    // sent at least one message, the freelancer can chat freely.
+    const gateRows = await sql<
+      { freelancer_id: number | null; client_id: number | null; freelancer_count: number; client_count: number }[]
+    >`
+      SELECT
+        p.freelancer_id,
+        j.client_id,
+        COALESCE((
+          SELECT COUNT(*)::int FROM messages m
+          WHERE m.conversation_id = ${conversationId}::uuid
+            AND m.sender_id = p.freelancer_id
+            AND m.is_deleted = false
+        ), 0) AS freelancer_count,
+        COALESCE((
+          SELECT COUNT(*)::int FROM messages m
+          WHERE m.conversation_id = ${conversationId}::uuid
+            AND m.sender_id = j.client_id
+            AND m.is_deleted = false
+        ), 0) AS client_count
+      FROM conversations c
+      LEFT JOIN proposals p ON p.id = c.proposal_id
+      LEFT JOIN jobs j ON j.id = p.job_id
+      WHERE c.id = ${conversationId}::uuid
+      LIMIT 1
+    `;
+    const gate = gateRows[0];
+    if (
+      gate &&
+      gate.freelancer_id !== null &&
+      gate.client_id !== null &&
+      senderId === gate.freelancer_id &&
+      gate.client_count === 0 &&
+      gate.freelancer_count >= 1
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'You can only send one message until the client responds. Please wait for their reply.',
+          code: 'FREELANCER_AWAITING_CLIENT',
+        },
+        { status: 403 },
+      );
+    }
 
     const newId = await sql.begin(async (txRaw) => {
       const tx = txRaw as unknown as typeof sql;

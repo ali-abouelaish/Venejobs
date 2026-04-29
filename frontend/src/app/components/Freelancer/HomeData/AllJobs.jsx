@@ -18,9 +18,40 @@ export default function AllJobs() {
   const { jobs, totalpagenum, fetchAllJob, loading, hasFetched } =
     jobApiStore();
 
+  // jobId -> { conversationId, status } for jobs the viewer already applied to
+  const [appliedByJobId, setAppliedByJobId] = useState({});
+
   useEffect(() => {
     fetchAllJob(page, limit);
   }, [page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMine() {
+      try {
+        const res = await fetch("/api/proposals/mine?limit=50", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const map = {};
+        for (const p of data.proposals ?? []) {
+          map[p.job_id] = {
+            conversationId: p.conversation_id ?? null,
+            status: p.status,
+          };
+        }
+        setAppliedByJobId(map);
+      } catch {
+        // non-critical
+      }
+    }
+    loadMine();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectPage = (selectedPage) => {
     if (selectedPage >= 1 && selectedPage <= totalpagenum) {
@@ -122,11 +153,17 @@ export default function AllJobs() {
       )}
 
       {/* ✅ JOB LIST */}
-      {activeTab === 0 && jobs?.map((item) => (
+      {activeTab === 0 && jobs?.map((item) => {
+        const applied = appliedByJobId[item.id];
+        return (
         <div
           key={item.id}
           onClick={() => router.push(`${Routes.freelancer.jobdetail}?id=${item.id}`)}
-          className="rounded-xl border border-[rgba(68,68,68,0.08)] bg-white p-6 flex flex-col gap-4 max-w-[1040px] cursor-pointer hover:border-secondary transition-colors"
+          className={`rounded-xl border bg-white p-6 flex flex-col gap-4 max-w-[1040px] cursor-pointer transition-colors ${
+            applied
+              ? "border-emerald-300 hover:border-emerald-500"
+              : "border-[rgba(68,68,68,0.08)] hover:border-secondary"
+          }`}
         >
           <div className="flex items-center gap-2">
             <Image
@@ -137,6 +174,24 @@ export default function AllJobs() {
               className="h-[30px] w-[30px] md:w-[38px] md:h-8"
             />
             <h2 className="font-semibold text-heading">Adobe</h2>
+            {applied && (
+              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Proposal submitted
+                {applied.conversationId && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/messages?conversation=${applied.conversationId}`);
+                    }}
+                    className="ml-1 underline-offset-2 hover:underline"
+                  >
+                    View in messages
+                  </button>
+                )}
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center ">
@@ -204,7 +259,8 @@ export default function AllJobs() {
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {activeTab === 0 && hasFetched && totalpagenum > 1 && (
         <PaginationFreelance

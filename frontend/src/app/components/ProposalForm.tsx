@@ -4,7 +4,7 @@ import { useState, FormEvent } from 'react';
 
 interface ProposalFormProps {
   jobId: string | number;
-  onSuccess?: (proposalId: number) => void;
+  onSuccess?: (proposalId: number, conversationId: string | null) => void;
 }
 
 export default function ProposalForm({ jobId, onSuccess }: ProposalFormProps) {
@@ -31,11 +31,11 @@ export default function ProposalForm({ jobId, onSuccess }: ProposalFormProps) {
         }),
       });
 
-      const data = await res.json() as { proposalId?: number; error?: string };
+      const data = await res.json() as { proposalId?: number; conversationId?: string; error?: string };
 
       if (res.status === 201) {
         setStatus('success');
-        onSuccess?.(data.proposalId!);
+        onSuccess?.(data.proposalId!, data.conversationId ?? null);
         return;
       }
 

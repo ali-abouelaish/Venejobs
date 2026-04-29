@@ -95,6 +95,24 @@ interface SendMessageParams {
   attachments?: AttachmentInput[];
 }
 
+export interface ConversationMeta {
+  id: string;
+  proposal_id: number | null;
+  freelancer_id: number | null;
+  client_id: number | null;
+}
+
+export class SendMessageError extends Error {
+  code: string | null;
+  status: number;
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.name = 'SendMessageError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
 function normalizeInitialMessage(raw: Partial<Message>): Message {
   return {
     id: raw.id ?? '',
@@ -137,6 +155,7 @@ export function useMessages(
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<number[]>([]);
   const [connected, setConnected] = useState(false);
+  const [conversationMeta, setConversationMeta] = useState<ConversationMeta | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,6 +183,7 @@ export function useMessages(
     if (!conversationId) {
       setMessages([]);
       setTypingUsers([]);
+      setConversationMeta(null);
       return;
     }
 
@@ -173,13 +193,14 @@ export function useMessages(
     // Server returns newest-first; reverse for ascending display order.
     fetch(`/api/conversations/${conversationId}/messages`)
       .then((r) => (r.ok ? r.json() : { messages: [] }))
-      .then((d: { messages: Array<Partial<Message>> }) => {
+      .then((d: { messages: Array<Partial<Message>>; conversation?: ConversationMeta }) => {
         if (cancelled) return;
         const normalized = (d.messages ?? [])
           .slice()
           .reverse()
           .map(normalizeInitialMessage);
         setMessages(normalized);
+        if (d.conversation) setConversationMeta(d.conversation);
 
         // Immediately mark all messages as read via REST (don't wait for WS to connect)
         const lastMsg = [...normalized].reverse().find((m) => !m.is_deleted);
@@ -401,7 +422,17 @@ export function useMessages(
 
         if (!res.ok) {
           setMessages((prev) => prev.filter((m) => m.id !== tempId));
-          return;
+          let payload: { error?: string; code?: string } = {};
+          try {
+            payload = (await res.json()) as { error?: string; code?: string };
+          } catch {
+            // ignore
+          }
+          throw new SendMessageError(
+            payload.error ?? 'Failed to send message',
+            res.status,
+            payload.code ?? null,
+          );
         }
 
         const { message: raw } = (await res.json()) as { message: Partial<Message> };
@@ -411,8 +442,9 @@ export function useMessages(
           const withoutDup = prev.filter((m) => m.id !== real.id);
           return withoutDup.map((m) => (m.id === tempId ? real : m));
         });
-      } catch {
+      } catch (err) {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        if (err instanceof SendMessageError) throw err;
       }
     },
     [conversationId, currentUserId],
@@ -518,6 +550,7 @@ export function useMessages(
     setMessages,
     typingUsers,
     connected,
+    conversationMeta,
     sendMessage,
     markRead,
     sendTypingStart,

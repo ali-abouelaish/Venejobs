@@ -16,7 +16,7 @@ if (emailEnabled) {
 }
 
 const SENDER = {
-  email: "amrit5576singh@gmail.com",
+  email: "venejobsadmin@gmail.com",
   name: "Venejob",
 };
 

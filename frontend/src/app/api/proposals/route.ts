@@ -43,7 +43,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'You have already submitted a proposal for this job' }, { status: 409 });
     }
 
-    // Insert proposal + conversation in a transaction
+    // Insert proposal + conversation + seed the cover letter as the
+    // freelancer's first chat message so the proposal is visible in the thread.
     const result = await sql.begin(async (txRaw) => {
       const tx = txRaw as unknown as typeof sql;
       const [proposal] = await tx`
@@ -51,14 +52,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         VALUES (${jobId}, ${session.user.id}, ${coverLetter}, ${offeredPrice}, ${String(estimatedDays)}, NOW(), NOW())
         RETURNING id
       `;
-      await tx`
+      const [conversation] = await tx`
         INSERT INTO conversations (proposal_id)
         VALUES (${proposal.id})
+        RETURNING id
       `;
-      return proposal;
+      const proposalIntro =
+        `Proposal · $${offeredPrice} · ${estimatedDays} days\n\n${coverLetter}`;
+      await tx`
+        INSERT INTO messages (conversation_id, sender_id, body, message_type)
+        VALUES (${conversation.id}::uuid, ${session.user.id}, ${proposalIntro}, 'text')
+      `;
+      return { proposalId: proposal.id as number, conversationId: conversation.id as string };
     });
 
-    return NextResponse.json({ proposalId: result.id }, { status: 201 });
+    return NextResponse.json(
+      { proposalId: result.proposalId, conversationId: result.conversationId },
+      { status: 201 },
+    );
   } catch (err) {
     console.error('[POST /api/proposals]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

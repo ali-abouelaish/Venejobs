@@ -12,6 +12,7 @@ import { Send, Paperclip, X, Download, Reply, Trash2, Smile, FileText, File } fr
 import { toast } from 'react-toastify';
 import {
   useMessages,
+  SendMessageError,
   type Message,
   type AttachmentInput,
   type WsIncoming,
@@ -403,6 +404,7 @@ export default function ChatPane({
   const {
     messages,
     typingUsers,
+    conversationMeta,
     sendMessage,
     markRead,
     sendTypingStart,
@@ -412,6 +414,25 @@ export default function ChatPane({
     deleteMessage,
     uploadFile,
   } = useMessages(conversationId, currentUserId, onWsEvent, onWsConnectedChange);
+
+  // Freelancer is gated to one message until the client replies in a
+  // proposal-bound conversation.
+  const viewerIsProposalFreelancer =
+    !!conversationMeta &&
+    conversationMeta.proposal_id !== null &&
+    conversationMeta.freelancer_id === currentUserId;
+  const clientHasResponded =
+    !!conversationMeta &&
+    messages.some(
+      (m) => !m.is_deleted && m.sender_id === conversationMeta.client_id,
+    );
+  const freelancerAlreadySent =
+    !!conversationMeta &&
+    messages.some(
+      (m) => !m.is_deleted && m.sender_id === conversationMeta.freelancer_id,
+    );
+  const composerLocked =
+    viewerIsProposalFreelancer && !clientHasResponded && freelancerAlreadySent;
 
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -504,6 +525,10 @@ export default function ChatPane({
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if ((!trimmed && pendingAttachments.length === 0) || isSending) return;
+    if (composerLocked) {
+      toast.info('Wait for the client to respond before sending another message.');
+      return;
+    }
 
     setIsSending(true);
     sendTypingStop();
@@ -527,12 +552,16 @@ export default function ChatPane({
         return [];
       });
       userScrolledUp.current = false;
-    } catch {
-      toast.error('Failed to send message');
+    } catch (err) {
+      if (err instanceof SendMessageError && err.code === 'FREELANCER_AWAITING_CLIENT') {
+        toast.info(err.message);
+      } else {
+        toast.error('Failed to send message');
+      }
     } finally {
       setIsSending(false);
     }
-  }, [text, pendingAttachments, isSending, replyTo, sendMessage, sendTypingStop]);
+  }, [text, pendingAttachments, isSending, replyTo, sendMessage, sendTypingStop, composerLocked]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -745,6 +774,12 @@ export default function ChatPane({
 
       {/* Composer */}
       <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-3">
+        {composerLocked && (
+          <div className="mb-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs px-3 py-2">
+            You can send one message after submitting your proposal. Wait for the
+            client to respond before sending another.
+          </div>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -756,8 +791,8 @@ export default function ChatPane({
         <div className="flex items-end gap-2 bg-[#F3F4F6] rounded-2xl px-3 py-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            title="Attach file"
+            disabled={isUploading || composerLocked}
+            title={composerLocked ? 'Waiting for client to respond' : 'Attach file'}
             className="text-gray-500 hover:text-gray-700 shrink-0 disabled:opacity-50 p-1"
           >
             <Paperclip size={20} />
@@ -773,14 +808,23 @@ export default function ChatPane({
             }}
             onKeyDown={handleKeyDown}
             onBlur={sendTypingStop}
-            placeholder="Type a message..."
-            className="flex-1 resize-none border-0 outline-none text-sm text-gray-900 placeholder:text-gray-500 bg-transparent py-1 leading-5 focus:ring-0"
+            disabled={composerLocked}
+            placeholder={
+              composerLocked
+                ? 'Waiting for the client to respond…'
+                : 'Type a message...'
+            }
+            className="flex-1 resize-none border-0 outline-none text-sm text-gray-900 placeholder:text-gray-500 bg-transparent py-1 leading-5 focus:ring-0 disabled:cursor-not-allowed"
             style={{ maxHeight: '120px', overflowY: 'auto' }}
           />
 
           <button
             onClick={handleSend}
-            disabled={(!text.trim() && pendingAttachments.length === 0) || isSending}
+            disabled={
+              composerLocked ||
+              (!text.trim() && pendingAttachments.length === 0) ||
+              isSending
+            }
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 disabled:bg-gray-300 shrink-0 transition-colors"
           >
             <Send size={16} />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -119,6 +120,7 @@ const CARD = 'rounded-xl border border-slate-200 bg-white p-6';
 
 export default function JobDetailView({ data }: { data: JobDetailData }) {
   const { job, client, proposalCount, myProposal, viewerId } = data;
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [applied, setApplied] = useState<MyProposalForJob | null>(myProposal);
 
@@ -128,21 +130,24 @@ export default function JobDetailView({ data }: { data: JobDetailData }) {
   const canApply = Boolean(viewerId) && !isOwner && isPublished && !applied;
   const status = statusLabel(job.status);
 
-  const handleApplySuccess = (proposalId: number): void => {
+  const handleApplySuccess = (proposalId: number, conversationId: string | null): void => {
     setApplied({
       id: proposalId,
       status: 'pending',
       proposedAmount: '',
       estimatedDuration: '',
       createdAt: new Date().toISOString(),
-      conversationId: null,
+      conversationId,
     });
     setShowForm(false);
+    if (conversationId) {
+      router.push(`/messages?conversation=${conversationId}`);
+    }
   };
 
   const proposalHref = applied?.conversationId
-    ? `/conversations/${applied.conversationId}`
-    : '/freelancer/Proposal/';
+    ? `/messages?conversation=${applied.conversationId}`
+    : null;
 
   return (
     <div className="max-w-[1200px] mx-auto px-6">
@@ -280,12 +285,14 @@ export default function JobDetailView({ data }: { data: JobDetailData }) {
                 >
                   Already applied
                 </button>
-                <Link
-                  href={proposalHref}
-                  className="w-full text-center bg-white border border-secondary text-secondary px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-secondary/5"
-                >
-                  View your proposal
-                </Link>
+                {proposalHref && (
+                  <Link
+                    href={proposalHref}
+                    className="w-full text-center bg-white border border-secondary text-secondary px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-secondary/5"
+                  >
+                    View your proposal
+                  </Link>
+                )}
                 <p className="text-xs text-paragraph text-center">
                   The client will message you here if they want to move forward.
                 </p>

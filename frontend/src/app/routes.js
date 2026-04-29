@@ -26,7 +26,6 @@ export const Routes = {
     chat: "/freelancer/chat/",
     jobdetail: "/freelancer/JobDetail/",
     // jobsearch:"/freelancer/JobSearch/",
-    proposal: "/freelancer/Proposal/",
     profileData: "/freelancer/profileData",
 
     profile: {
