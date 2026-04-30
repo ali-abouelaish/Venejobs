@@ -118,7 +118,7 @@ export default function ContractComposer(props: Props) {
       !!price &&
       Number(price) > 0 &&
       !!deadline &&
-      deadline > today &&
+      deadline >= today &&
       !!paymentTerms.trim();
     if (!isCreate) return baseValid && !!changeSummary.trim();
     return baseValid;
