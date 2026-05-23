@@ -27,16 +27,48 @@ export interface ContractSignature {
   signedAt: string;
 }
 
+export type ContractPaymentState =
+  | 'paid'
+  | 'delivered'
+  | 'accepted'
+  | 'auto_accepted'
+  | 'completed'
+  | 'disputed'
+  | 'refunded';
+
+export interface ContractOpenDispute {
+  id: string;
+  raisedBy: number;
+  raisedByName: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface ContractPayment {
+  state: ContractPaymentState;
+  amount: number;
+  currency: string;
+  paidAt: string;
+  deliveredAt: string | null;
+  acceptedAt: string | null;
+  autoAcceptDeadline: string | null;
+  openDispute: ContractOpenDispute | null;
+}
+
 export interface Contract {
   id: string;
   conversationId: string;
   createdBy: number;
   createdByName: string;
+  clientId: number;
+  freelancerId: number;
   status: string;
   messageId: string | null;
   currentRevision: ContractRevision | null;
   revisionHistory: ContractRevision[];
   signatures: ContractSignature[];
+  payment: ContractPayment | null;
+  freelancerConnectReady: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -128,11 +160,118 @@ export async function fetchFullContract(contractId: string): Promise<Contract | 
 
   const currentRevision = revisions.find((r) => r.id === row.current_revision_id) ?? null;
 
+  // Conversation participants — needed both for permission checks in the
+  // UI and to read the freelancer's Connect readiness flag below.
+  const participantRows = await sql<{ freelancer_id: number; client_id: number }[]>`
+    SELECT p.freelancer_id, j.client_id
+    FROM conversations c
+    JOIN proposals p ON p.id = c.proposal_id
+    JOIN jobs j ON j.id = p.job_id
+    WHERE c.id = ${row.conversation_id}::uuid
+    LIMIT 1
+  `;
+  const freelancerId = participantRows[0]?.freelancer_id ?? 0;
+  const clientId = participantRows[0]?.client_id ?? 0;
+
+  // Latest order, if any. Mirrors the UNIQUE(contract_id) on
+  // contract_orders — there can be at most one row per contract, but the
+  // state walks paid → delivered → accepted | auto_accepted → completed
+  // as the work flows. UI reads `state` to pick the right surface.
+  const paymentRows = await sql<{
+    id: string;
+    state: string;
+    amount: number;
+    currency: string;
+    paid_at: string;
+    delivered_at: string | null;
+    accepted_at: string | null;
+    auto_accept_deadline: string | null;
+  }[]>`
+    SELECT
+      id::text,
+      state,
+      amount,
+      currency,
+      created_at AS paid_at,
+      delivered_at,
+      accepted_at,
+      auto_accept_deadline
+    FROM contract_orders
+    WHERE contract_id = ${contractId}::uuid
+    LIMIT 1
+  `;
+
+  let openDispute: ContractOpenDispute | null = null;
+  if (paymentRows.length > 0 && paymentRows[0].state === 'disputed') {
+    const disputeRows = await sql<{
+      id: string;
+      raised_by: number;
+      raised_by_name: string;
+      reason: string;
+      created_at: string;
+    }[]>`
+      SELECT
+        d.id::text,
+        d.raised_by,
+        u.name AS raised_by_name,
+        d.reason,
+        d.created_at
+      FROM contract_order_disputes d
+      JOIN users u ON u.id = d.raised_by
+      WHERE d.contract_order_id = ${paymentRows[0].id}::uuid
+        AND d.resolution IS NULL
+      ORDER BY d.created_at ASC
+      LIMIT 1
+    `;
+    if (disputeRows.length > 0) {
+      openDispute = {
+        id: disputeRows[0].id,
+        raisedBy: disputeRows[0].raised_by,
+        raisedByName: disputeRows[0].raised_by_name,
+        reason: disputeRows[0].reason,
+        createdAt: disputeRows[0].created_at,
+      };
+    }
+  }
+
+  const payment: ContractPayment | null =
+    paymentRows.length === 0
+      ? null
+      : {
+          state: paymentRows[0].state as ContractPaymentState,
+          amount: paymentRows[0].amount,
+          currency: paymentRows[0].currency,
+          paidAt: paymentRows[0].paid_at,
+          deliveredAt: paymentRows[0].delivered_at,
+          acceptedAt: paymentRows[0].accepted_at,
+          autoAcceptDeadline: paymentRows[0].auto_accept_deadline,
+          openDispute,
+        };
+
+  // Cached Connect readiness for the UI. The checkout route still
+  // live-syncs before creating a session, so a stale 'true' here can
+  // never silently let us charge an unpayable freelancer.
+  const connectRows = await sql<{
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+  }[]>`
+    SELECT charges_enabled, payouts_enabled
+    FROM stripe_connect_accounts
+    WHERE user_id = ${freelancerId}
+    LIMIT 1
+  `;
+  const freelancerConnectReady =
+    connectRows.length > 0 &&
+    connectRows[0].charges_enabled &&
+    connectRows[0].payouts_enabled;
+
   return {
     id: row.id,
     conversationId: row.conversation_id,
     createdBy: row.created_by,
     createdByName: row.created_by_name,
+    clientId,
+    freelancerId,
     status: row.status,
     messageId: row.message_id,
     currentRevision: currentRevision ? shapeRevision(currentRevision) : null,
@@ -142,6 +281,8 @@ export async function fetchFullContract(contractId: string): Promise<Contract | 
       typedName: s.typed_name,
       signedAt: s.signed_at,
     })),
+    payment,
+    freelancerConnectReady,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

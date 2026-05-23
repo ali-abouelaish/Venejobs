@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>VeneJobs · Services UI</title>
+  <link rel="stylesheet" href="src/tokens.css"/>
+  <link rel="stylesheet" href="src/app.css"/>
+  <style>
+    /* Responsive helpers */
+    .show-on-mobile { display: none !important; }
+    .hide-on-mobile { display: initial; }
+    @media (max-width: 740px) {
+      .show-on-mobile { display: flex !important; }
+      .hide-on-mobile { display: none !important; }
+      .topnav-desktop { display: none !important; }
+      .admin-sidebar { display: none !important; }
+      .app-root { grid-template-columns: minmax(0, 1fr) !important; }
+      .detail-hero { height: 220px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div style="display:grid;place-items:center;min-height:100vh;color:#666;font-family:DM Sans,sans-serif;">
+      Loading prototype…
+    </div>
+  </div>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Foundation: utilities + design system primitives -->
+  <script type="text/babel" src="src/util.jsx"></script>
+  <script type="text/babel" src="src/primitives.jsx"></script>
+  <script type="text/babel" src="src/feedback.jsx"></script>
+  <script type="text/babel" src="src/forms.jsx"></script>
+  <script type="text/babel" src="src/data.jsx"></script>
+
+  <!-- Layouts -->
+  <script type="text/babel" src="src/layouts.jsx"></script>
+
+  <!-- Tweaks (host protocol) -->
+  <script type="text/babel" src="src/tweaks-panel.jsx"></script>
+
+  <!-- Screens -->
+  <script type="text/babel" src="src/screens-freelancer.jsx"></script>
+  <script type="text/babel" src="src/screens-public.jsx"></script>
+  <script type="text/babel" src="src/screens-orders.jsx"></script>
+  <script type="text/babel" src="src/screens-admin.jsx"></script>
+
+  <!-- App entry -->
+  <script type="text/babel" src="src/app.jsx"></script>
+</body>
+</html>

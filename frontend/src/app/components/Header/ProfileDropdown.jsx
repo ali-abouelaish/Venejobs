@@ -8,7 +8,6 @@ import SvgIcon from "../Utility/SvgIcon";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import Link from "next/link";
 import Image from "next/image";
-import SearchInput from "../common/SearchInput";
 
 export default function ProfileDropdown() {
   const router = useRouter();
@@ -17,7 +16,6 @@ export default function ProfileDropdown() {
   const user_logout = userApiStore((s) => s.logout);
   const showSuccess = toastStore.getState().showSuccess;
   const showError = toastStore.getState().showError;
-  const [search, setSearch] = useState("");
 
   const logout = () => {
     try {
@@ -41,8 +39,6 @@ export default function ProfileDropdown() {
     return (
       <div className="hidden sm:hidden lg:block">
         <div className="flex items-center gap-6 md:gap-4">
-          <div className="h-10 w-56 bg-gray-200 rounded-4xl animate-pulse" />
-
           <div className="h-6 w-6 bg-gray-200 rounded-full animate-pulse" />
           <div className="h-6 w-6 bg-gray-200 rounded-full animate-pulse" />
 
@@ -56,19 +52,6 @@ export default function ProfileDropdown() {
   return (
     <div className="hidden sm:hidden lg:block ">
       <div className="flex items-center gap-6 md:gap-4">
-        <div className="relative ">
-          <span className="absolute inset-y-0 px-4  flex items-center ">
-            <SvgIcon name="Search_Icon" />
-          </span>
-          <div className="w-56">
-            <SearchInput
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search"
-              className=""
-            />
-          </div>
-        </div>
         <SvgIcon name="Question" />
 
         <button
@@ -95,7 +78,7 @@ export default function ProfileDropdown() {
               alt=""
               height={"100"}
               width={"100"}
-              className="size-10 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10"
+              className="size-10 rounded-full bg-gray-800 ring-1 ring-white outline outline-[0.5px] outline-msg-border"
             />
           </button>
 

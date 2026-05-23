@@ -1,0 +1,142 @@
+/* Page-level shell styles for Services pages. Imported by the small
+   ServicesShell wrapper. Tokens come from tokens.css. */
+
+.vj-page {
+  font-family: var(--font-sans);
+  color: var(--fg-2);
+  background: var(--bg-subtle);
+}
+
+.vj-page-pad {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+}
+
+@media (max-width: 640px) {
+  .vj-page-pad { padding: 20px 16px 64px; }
+}
+
+.vj-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .vj-two-col { grid-template-columns: minmax(0, 1fr); }
+}
+
+.vj-no-scroll { overflow: hidden; }
+.vj-no-scrollbar::-webkit-scrollbar { display: none; }
+.vj-no-scrollbar { scrollbar-width: none; }
+
+@keyframes vj-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes vj-rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes vj-slide-in-right { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: translateX(0) } }
+@keyframes vj-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+@keyframes vj-shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position:  200px 0; }
+}
+
+.vj-skeleton {
+  background: linear-gradient(90deg, var(--bg-muted) 0%, #ececec 50%, var(--bg-muted) 100%);
+  background-size: 400px 100%;
+  animation: vj-shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+
+.vj-toast-host {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+  pointer-events: none;
+}
+.vj-toast-host > * { pointer-events: auto; }
+
+/* focus ring for keyboard users inside the services surface */
+.vj-page :focus-visible {
+  outline: 2px solid var(--brand, var(--client-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Admin layout grid + sidebar */
+.vj-admin-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.vj-admin-sidebar {
+  background: #0d1119;
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.vj-admin-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-subtle);
+}
+.vj-admin-topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--border-2);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.vj-admin-menubtn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border-2); background: #fff;
+  cursor: pointer; display: none; place-items: center;
+  color: var(--fg-3);
+}
+@media (max-width: 768px) {
+  .vj-admin-grid { grid-template-columns: minmax(0, 1fr); }
+  .vj-admin-sidebar { display: none; }
+  .vj-admin-menubtn { display: grid; }
+}
+
+/* Hide-on-mobile / show-on-mobile helpers (used inside Services surface only) */
+@media (max-width: 768px) {
+  .vj-hide-on-mobile { display: none !important; }
+}
+@media (min-width: 769px) {
+  .vj-show-on-mobile { display: none !important; }
+}
+
+/* Admin table */
+.vj-admin-table th,
+.vj-admin-table td {
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-2);
+}
+.vj-admin-table th {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fg-5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-subtle);
+}
+.vj-admin-table tr:last-child td { border-bottom: none; }
+.vj-admin-table tr:hover td { background: var(--bg-subtle); }
+.vj-admin-table td { vertical-align: middle; }

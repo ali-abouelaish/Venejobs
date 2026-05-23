@@ -455,7 +455,7 @@ function AboutClientCard({
   const avatarSrc = client.profilePicture
     ? (client.profilePicture.startsWith('http')
         ? client.profilePicture
-        : `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}${client.profilePicture}`)
+        : `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}${client.profilePicture.replace(/^\//, '')}`)
     : null;
   const initial = client.name.charAt(0).toUpperCase();
 

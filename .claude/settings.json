@@ -1,7 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(ls -la /d/Venejobs/Venejobs-main/app/freelancer-setup*/)"
-    ]
+    "defaultMode": "auto",
+    "deny": ["Edit(.env*)", "Bash(git push*)"]
   }
 }

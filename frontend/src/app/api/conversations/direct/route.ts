@@ -19,6 +19,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = await req.json().catch(() => null);
     const freelancerId =
       typeof body?.freelancerId === 'number' ? body.freelancerId : null;
+    // When true, skip the proposal-bound conversation fallback and only
+    // find/create a true direct (proposal_id IS NULL) conversation. Callers
+    // who already have an established relationship (e.g. a service order)
+    // should pass this — proposal-bound conversations come with the
+    // freelancer-pre-response messaging gate which doesn't apply.
+    const forceDirect = body?.forceDirect === true;
 
     if (!freelancerId) {
       return NextResponse.json(
@@ -59,20 +65,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ conversationId: existing[0].id });
     }
 
-    // Also check if they already have a proposal-based conversation
-    const proposalConv = await sql<{ id: string }[]>`
-      SELECT c.id::text
-      FROM conversations c
-      JOIN proposals p ON p.id = c.proposal_id
-      JOIN jobs j ON j.id = p.job_id
-      WHERE (p.freelancer_id = ${freelancerId} AND j.client_id = ${clientId})
-         OR (p.freelancer_id = ${clientId} AND j.client_id = ${freelancerId})
-      ORDER BY c.created_at DESC
-      LIMIT 1
-    `;
+    // Also check if they already have a proposal-based conversation,
+    // unless the caller explicitly wants a direct conversation only.
+    if (!forceDirect) {
+      const proposalConv = await sql<{ id: string }[]>`
+        SELECT c.id::text
+        FROM conversations c
+        JOIN proposals p ON p.id = c.proposal_id
+        JOIN jobs j ON j.id = p.job_id
+        WHERE (p.freelancer_id = ${freelancerId} AND j.client_id = ${clientId})
+           OR (p.freelancer_id = ${clientId} AND j.client_id = ${freelancerId})
+        ORDER BY c.created_at DESC
+        LIMIT 1
+      `;
 
-    if (proposalConv.length > 0) {
-      return NextResponse.json({ conversationId: proposalConv[0].id });
+      if (proposalConv.length > 0) {
+        return NextResponse.json({ conversationId: proposalConv[0].id });
+      }
     }
 
     // Create new direct conversation

@@ -37,5 +37,16 @@ export async function UpdateProfile(data) {
 }
 
 export async function UpdateProfilePhoto(data) {
-  return api.post("api/auth/profile-picture",data);
+  const res = await fetch("/api/users/me/avatar", {
+    method: "POST",
+    body: data,
+    credentials: "same-origin",
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const err = new Error(json?.message || "Update profile photo failed");
+    err.response = { data: json, status: res.status };
+    throw err;
+  }
+  return json;
 }

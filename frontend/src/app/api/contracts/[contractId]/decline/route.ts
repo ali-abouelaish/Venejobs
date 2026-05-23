@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
+import { notifyContractDeclined } from '@/lib/email/notifications';
 
 /** POST /api/contracts/[contractId]/decline */
 export async function POST(
@@ -73,6 +74,8 @@ export async function POST(
   }
 
   await broadcastContract(contract.conversation_id, 'contract_updated', fullContract);
+
+  await notifyContractDeclined(contractId, userId);
 
   return NextResponse.json({ contract: fullContract });
 }

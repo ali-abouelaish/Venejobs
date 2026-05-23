@@ -62,7 +62,7 @@ export default function Loginform({ setActiveModal, setUserEmail }) {
       }
 
       if (user?.role_name === "admin") {
-        router.replace(Routes.home);
+        router.replace(Routes.admin.home);
         return;
       }
 

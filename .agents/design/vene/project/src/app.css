@@ -1,0 +1,112 @@
+/* Prototype shell styles. Tokens come from tokens.css. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-subtle);
+  color: var(--fg-2);
+  font-family: var(--font-sans);
+}
+
+a { color: inherit; }
+
+button { font-family: var(--font-sans); }
+
+/* ------- App router viewport ------- */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* page container used inside layouts */
+.page-pad {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+}
+
+@media (max-width: 640px) {
+  .page-pad {
+    padding: 20px 16px 64px;
+  }
+}
+
+/* ------- generic content helpers ------- */
+.stack { display: flex; flex-direction: column; }
+.row   { display: flex; }
+.gap-1 { gap: 4px;  }
+.gap-2 { gap: 8px;  }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.gap-8 { gap: 32px; }
+
+.muted { color: var(--fg-4); }
+.meta  { font-size: var(--fs-meta); color: var(--fg-4); }
+
+/* sticky responsive containers used across screens */
+.two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .two-col { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* mobile nav drawer */
+.no-scroll { overflow: hidden; }
+
+/* focus rings */
+:focus-visible {
+  outline: 2px solid var(--brand, var(--client-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* dialog scrim */
+@keyframes vj-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes vj-rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+
+/* skeleton */
+@keyframes vj-shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-muted) 0%, #ececec 50%, var(--bg-muted) 100%);
+  background-size: 400px 100%;
+  animation: vj-shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+
+/* toast container */
+.toast-host {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast-host > * { pointer-events: auto; }
+
+/* hide scrollbar in dock */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

@@ -4,14 +4,16 @@ import Link from "next/link";
 import ProfileDropdown from "./ProfileDropdown";
 import { Routes } from "../../routes";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import SvgIcon from "../Utility/SvgIcon";
 import toastStore from "../../store/toastStore";
 import userApiStore from "../../store/userStore";
 import HomeNavbarMobileMenu from "../navbar/HomeNavbarMobileMenu";
+import GlobalSearch from "./GlobalSearch";
 
 export default function HomeNavbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const showSuccess = toastStore.getState().showSuccess;
   const showError = toastStore.getState().showError;
@@ -37,18 +39,18 @@ export default function HomeNavbar() {
       icon: "",
     },
     {
+      label: "Find Services",
+      href: Routes.services.browse,
+      icon: "",
+    },
+    {
       label: "Post a Job",
       href: Routes.client.job_post.form,
       icon: "",
     },
     {
-      label: "Manage Work",
-      href: "",
-      icon: "",
-    },
-    {
-      label: "Reports",
-      href: "",
+      label: "My Orders",
+      href: Routes.client.orders,
       icon: "",
     },
     {
@@ -72,18 +74,18 @@ export default function HomeNavbar() {
       icon: "",
     },
     {
+      label: "Find Services",
+      href: Routes.services.browse,
+      icon: "",
+    },
+    {
       label: "Post a job",
-      href: "",
+      href: Routes.client.job_post.form,
       icon: "",
     },
     {
-      label: "Manage Work",
-      href: "",
-      icon: "",
-    },
-    {
-      label: "Reports",
-      href: "",
+      label: "My Orders",
+      href: Routes.client.orders,
       icon: "",
     },
     {
@@ -95,7 +97,7 @@ export default function HomeNavbar() {
 
   return (
     <>
-      <div className="w-full relative border-b border-gray-200">
+      <div className="w-full relative msg-border-b bg-white lg:mb-20">
         <div
           className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto"
         >
@@ -122,14 +124,29 @@ export default function HomeNavbar() {
             <div className="lg:block hidden">
               <nav>
                 <ul className="flex items-center gap-6 lg:gap-3 xl:gap-15 md:gap-10">
-                  {NavLinks.map((item) => (
-                    <li
-                      className="text-paragraph text-base font-medium"
-                      key={item.label}
-                    >
-                      <Link href={item.href}>{item.label}</Link>
-                    </li>
-                  ))}
+                  {NavLinks.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <li
+                        className="text-paragraph text-base font-medium"
+                        key={item.label}
+                      >
+                        <Link
+                          href={item.href}
+                          className="relative inline-block py-1"
+                        >
+                          {item.label}
+                          {isActive && (
+                            <span
+                              aria-hidden
+                              className="absolute left-0 right-0 h-0.5 bg-msg-brand rounded-full"
+                              style={{ bottom: "-4px" }}
+                            />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
             </div>
@@ -156,6 +173,15 @@ export default function HomeNavbar() {
             SidebarLinks={SidebarLinks}
             userLogout={userLogout}
           />
+        </div>
+
+        {/* Floating search — hovers below the navbar, 60% of nav width */}
+        <div className="hidden lg:block absolute left-0 right-0 top-full mt-3 z-30 pointer-events-none">
+          <div className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto flex justify-center">
+            <div className="w-3/5 pointer-events-auto">
+              <GlobalSearch />
+            </div>
+          </div>
         </div>
       </div>
     </>

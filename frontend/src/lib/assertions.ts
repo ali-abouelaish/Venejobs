@@ -1,4 +1,8 @@
+import { and, eq } from 'drizzle-orm';
 import { sql } from '@/lib/db';
+import { db } from '@/lib/db/drizzle';
+import { roles, users } from '@/lib/db/schema';
+import { serviceOrders, services } from '@/lib/db/schema/services';
 
 /**
  * Returns true if userId is either the freelancer on the proposal,
@@ -73,4 +77,93 @@ export async function assertProposalClientAccess(
     LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+export interface ServiceAccessRow {
+  id: string;
+  freelancerId: number;
+  status: string;
+  rejectionReason: string | null;
+}
+
+/**
+ * Returns key fields of the service row when userId is the freelancer
+ * who owns it, else null. Status is returned so callers can gate edits
+ * by state (e.g. only allow edits in 'draft' or 'rejected').
+ */
+export async function assertServiceAccess(
+  serviceId: string,
+  userId: number,
+): Promise<ServiceAccessRow | null> {
+  const rows = await db
+    .select({
+      id: services.id,
+      freelancerId: services.freelancerId,
+      status: services.status,
+      rejectionReason: services.rejectionReason,
+    })
+    .from(services)
+    .where(and(eq(services.id, serviceId), eq(services.freelancerId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type ServiceOrderRow = typeof serviceOrders.$inferSelect;
+
+/**
+ * Returns the service_order row when userId is the participant in the
+ * given role (client or freelancer), else null. Use to gate any
+ * service-order endpoint where the acting user must be one of the two
+ * named participants.
+ */
+export async function assertServiceOrderAccess(
+  orderId: string,
+  userId: number,
+  role: 'client' | 'freelancer',
+): Promise<ServiceOrderRow | null> {
+  const column = role === 'client' ? serviceOrders.clientId : serviceOrders.freelancerId;
+  const rows = await db
+    .select()
+    .from(serviceOrders)
+    .where(and(eq(serviceOrders.id, orderId), eq(column, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Returns the service_order row plus the caller's derived role when
+ * userId is either the client or the freelancer on the order, else null.
+ * Use when the route does not know the caller's role up-front (e.g.
+ * reviews, where either party can act). Does NOT check order state —
+ * callers gate on state themselves.
+ */
+export async function assertServiceOrderParticipant(
+  orderId: string,
+  userId: number,
+): Promise<{ row: ServiceOrderRow; role: 'client' | 'freelancer' } | null> {
+  const rows = await db
+    .select()
+    .from(serviceOrders)
+    .where(eq(serviceOrders.id, orderId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  if (row.clientId === userId) return { row, role: 'client' };
+  if (row.freelancerId === userId) return { row, role: 'freelancer' };
+  return null;
+}
+
+/**
+ * Returns true if the user's role is 'admin'. Use to gate /api/admin/*
+ * routes. Checks live (no caching) so role revocations take effect on
+ * the next request.
+ */
+export async function assertAdminAccess(userId: number): Promise<boolean> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .innerJoin(roles, eq(roles.id, users.roleId))
+    .where(and(eq(users.id, userId), eq(roles.name, 'admin')))
+    .limit(1);
+  return rows.length > 0;
 }

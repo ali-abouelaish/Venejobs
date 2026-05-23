@@ -110,7 +110,7 @@ function EmojiPicker({
   return (
     <div
       ref={ref}
-      className="absolute bottom-8 right-0 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-2"
+      className="absolute bottom-8 right-0 z-20 bg-msg-surface msg-border rounded-msg-md p-2"
       style={{ width: '168px' }}
     >
       <div className="grid grid-cols-5 gap-1">
@@ -121,7 +121,7 @@ function EmojiPicker({
               onSelect(e);
               onClose();
             }}
-            className="text-lg hover:bg-gray-100 rounded p-0.5 transition-colors"
+            className="text-lg hover:bg-msg-hover rounded-sm p-0.5 transition-colors duration-150"
           >
             {e}
           </button>
@@ -147,7 +147,7 @@ function AttachmentView({
           className="rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
           style={{ maxWidth: '240px', maxHeight: '240px' }}
         />
-        <span className="text-xs text-gray-500 mt-1 block">{att.file_name}</span>
+        <span className="text-[10px] text-msg-text-tertiary mt-1 block">{att.file_name}</span>
       </a>
     );
   }
@@ -158,17 +158,17 @@ function AttachmentView({
       download={att.file_name}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5 mt-2 hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-3 bg-msg-surface msg-border rounded-msg-sm px-3 py-2.5 mt-2 hover:bg-msg-hover transition-colors duration-150"
       style={{ maxWidth: '280px' }}
     >
-      <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 bg-msg-bubble-received text-msg-text-secondary rounded-sm flex items-center justify-center shrink-0">
         <FileText size={16} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-900 truncate">{att.file_name}</p>
-        <p className="text-xs text-gray-500">{formatBytes(att.size_bytes)}</p>
+        <p className="text-[13px] font-medium text-msg-text truncate">{att.file_name}</p>
+        <p className="text-[10px] text-msg-text-secondary">{formatBytes(att.size_bytes)}</p>
       </div>
-      <Download size={14} className="shrink-0 text-gray-400" />
+      <Download size={14} className="shrink-0 text-msg-text-tertiary" />
     </a>
   );
 }
@@ -221,7 +221,7 @@ function MessageBubble({
         data-message-id={message.id}
         className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${isOwn ? '' : showAvatar ? 'pl-0' : 'pl-10'}`}
       >
-        <span className="italic text-sm text-gray-400 py-1 px-2">
+        <span className="italic text-[13px] text-msg-text-tertiary py-1 px-2">
           Message deleted
         </span>
       </div>
@@ -242,13 +242,13 @@ function MessageBubble({
       <div className={`flex ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-end gap-2 max-w-[70%]`}>
         {/* Avatar slot (incoming only) */}
         {!isOwn && (
-          <div className="w-7 shrink-0">
+          <div className="w-6 shrink-0">
             {showAvatar ? (
               <Avatar
                 id={message.sender_id}
                 name={message.sender_name}
                 src={message.sender_avatar}
-                size={28}
+                size={24}
               />
             ) : null}
           </div>
@@ -259,12 +259,12 @@ function MessageBubble({
           {/* Reply preview */}
           {message.reply_to && (
             <div
-              className="px-2.5 py-1.5 text-xs rounded-lg mb-1 border-l-2 border-blue-400 bg-gray-100 max-w-[220px]"
+              className="px-2.5 py-1.5 text-[11px] rounded-msg-sm mb-1 border-l-2 border-msg-brand bg-msg-bubble-received max-w-[220px]"
             >
-              <p className="font-semibold text-gray-700 truncate">
+              <p className="font-medium text-msg-text truncate">
                 {message.reply_to.sender_name}
               </p>
-              <p className="text-gray-500 truncate">
+              <p className="text-msg-text-secondary truncate">
                 {message.reply_to.body ?? 'Message deleted'}
               </p>
             </div>
@@ -273,11 +273,12 @@ function MessageBubble({
           {/* Main bubble */}
           {!hasAttachmentsOnly && (
             <div
-              className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+              className={`text-[13px] leading-[1.4] whitespace-pre-wrap break-words ${
                 isOwn
-                  ? 'bg-[#E8F1FF] text-[#0F2A4A] rounded-2xl rounded-br-md'
-                  : 'bg-[#F1F3F5] text-gray-900 rounded-2xl rounded-bl-md'
+                  ? `bg-msg-brand text-white ${showTimestamp ? 'rounded-msg-bubble rounded-br-sm' : 'rounded-msg-bubble'}`
+                  : `bg-msg-bubble-received text-msg-text ${showTimestamp ? 'rounded-msg-bubble rounded-bl-sm' : 'rounded-msg-bubble'}`
               }`}
+              style={{ padding: '7px 11px' }}
             >
               {message.body}
             </div>
@@ -301,10 +302,10 @@ function MessageBubble({
                         ? onRemoveReaction(message.id, r.emoji)
                         : onAddReaction(message.id, r.emoji)
                     }
-                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] msg-border transition-colors duration-150 ${
                       isMine
-                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                        ? 'bg-msg-bubble-received text-msg-brand'
+                        : 'bg-msg-surface text-msg-text-secondary hover:bg-msg-hover'
                     }`}
                   >
                     <span>{r.emoji}</span>
@@ -316,7 +317,7 @@ function MessageBubble({
               <div className="relative">
                 <button
                   onClick={() => setShowEmojiPicker((v) => !v)}
-                  className="flex items-center px-1.5 py-0.5 rounded-full text-xs border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors"
+                  className="flex items-center px-1.5 py-0.5 rounded-full text-[10px] msg-border bg-msg-surface text-msg-text-tertiary hover:bg-msg-hover transition-colors duration-150"
                 >
                   <Smile size={12} />
                 </button>
@@ -332,7 +333,7 @@ function MessageBubble({
 
           {/* Timestamp (only on last message of group) */}
           {showTimestamp && (
-            <span className="text-[10px] text-gray-400 mt-1">
+            <span className="text-[10px] text-msg-text-tertiary mt-1 tabular-nums">
               {formatTime(message.sent_at)}
             </span>
           )}
@@ -344,15 +345,15 @@ function MessageBubble({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px]"
+            className="fixed z-20 bg-msg-surface msg-border rounded-msg-md py-1 min-w-35"
             style={
               contextMenu.x
-                ? { left: contextMenu.x, top: contextMenu.y }
-                : { right: '16px', bottom: '80px' }
+                ? { left: contextMenu.x, top: contextMenu.y, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }
+                : { right: '16px', bottom: '80px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }
             }
           >
             <button
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-900 hover:bg-gray-50"
+              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-msg-text hover:bg-msg-hover transition-colors duration-150"
               onClick={() => {
                 onReply(message);
                 setContextMenu(null);
@@ -362,7 +363,7 @@ function MessageBubble({
               Reply
             </button>
             <button
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-900 hover:bg-gray-50"
+              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-msg-text hover:bg-msg-hover transition-colors duration-150"
               onClick={() => {
                 setShowEmojiPicker(true);
                 setContextMenu(null);
@@ -373,7 +374,7 @@ function MessageBubble({
             </button>
             {isOwn && (
               <button
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-colors duration-150"
                 onClick={() => {
                   onDelete(message.id);
                   setContextMenu(null);
@@ -622,8 +623,8 @@ export default function ChatPane({
   function renderMessages() {
     if (messages.length === 0) {
       return (
-        <p className="text-center text-gray-400 text-sm m-auto">
-          No messages yet. Say hello!
+        <p className="text-center text-msg-text-tertiary text-[13px] m-auto">
+          No messages yet. Say hello.
         </p>
       );
     }
@@ -638,10 +639,12 @@ export default function ChatPane({
       // Date divider
       if (!prev || !isSameDay(prev.sent_at, msg.sent_at)) {
         elements.push(
-          <div key={`date-${i}`} className="flex justify-center my-6">
-            <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+          <div key={`date-${i}`} className="flex items-center gap-2 my-3">
+            <span className="flex-1 h-px bg-msg-border" aria-hidden />
+            <span className="text-[10px] text-msg-text-tertiary">
               {formatDateDivider(msg.sent_at)}
             </span>
+            <span className="flex-1 h-px bg-msg-border" aria-hidden />
           </div>,
         );
       }
@@ -669,7 +672,7 @@ export default function ChatPane({
       }
 
       elements.push(
-        <div key={`msg-${i}`} className={isFirstInGroup ? '' : 'mt-1'}>
+        <div key={`msg-${i}`} className={isFirstInGroup ? '' : 'mt-0.5'}>
           <MessageBubble
             message={msg}
             isOwn={isOwn}
@@ -692,26 +695,24 @@ export default function ChatPane({
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-white min-w-0 relative">
+    <div className="flex flex-col h-full bg-msg-surface min-w-0 relative">
       {/* Messages list */}
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 py-4 flex flex-col"
+        className="flex-1 overflow-y-auto msg-scroll px-6 py-4 flex flex-col"
       >
         {renderMessages()}
 
         {/* Typing indicator */}
         {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 mt-4">
-            <div className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-[10px] shrink-0 font-bold">
-              ...
-            </div>
-            <div className="flex gap-1 px-3 py-2.5 bg-[#F1F3F5] rounded-2xl rounded-bl-md">
+          <div className="flex items-center gap-2 mt-3">
+            <div className="w-6 shrink-0" />
+            <div className="flex gap-1 bg-msg-bubble-received rounded-msg-bubble rounded-bl-sm" style={{ padding: '7px 11px' }}>
               {[0, 150, 300].map((delay) => (
                 <span
                   key={delay}
-                  className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
+                  className="w-1.5 h-1.5 rounded-full bg-msg-text-tertiary animate-bounce"
                   style={{ animationDelay: `${delay}ms` }}
                 />
               ))}
@@ -724,25 +725,25 @@ export default function ChatPane({
 
       {/* Pending attachment chips */}
       {pendingAttachments.length > 0 && (
-        <div className="px-6 py-2 flex flex-wrap gap-2 border-t border-gray-200">
+        <div className="px-4 py-2 flex flex-wrap gap-2 msg-border-t bg-msg-surface">
           {pendingAttachments.map((att) => (
             <div
               key={att.tempId}
-              className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded text-xs text-gray-700 max-w-[160px]"
+              className="flex items-center gap-1.5 px-2 py-1 bg-msg-bubble-received rounded-sm text-[11px] text-msg-text max-w-40"
             >
               {att.fileType === 'image' && att.previewUrl ? (
                 <img
                   src={att.previewUrl}
                   alt={att.fileName}
-                  className="w-5 h-5 rounded object-cover shrink-0"
+                  className="w-5 h-5 rounded-sm object-cover shrink-0"
                 />
               ) : (
-                <File size={12} className="shrink-0 text-gray-500" />
+                <File size={12} className="shrink-0 text-msg-text-tertiary" />
               )}
               <span className="truncate flex-1">{att.fileName}</span>
               <button
                 onClick={() => removePending(att.tempId)}
-                className="shrink-0 text-gray-400 hover:text-gray-700"
+                className="shrink-0 text-msg-text-tertiary hover:text-msg-text transition-colors duration-150"
               >
                 <X size={11} />
               </button>
@@ -753,19 +754,19 @@ export default function ChatPane({
 
       {/* Reply banner */}
       {replyTo && (
-        <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-t border-gray-200 text-xs">
-          <Reply size={14} className="text-blue-600 shrink-0" />
+        <div className="flex items-center gap-2 px-4 py-2 bg-msg-hover msg-border-t text-[11px]">
+          <Reply size={14} className="text-msg-brand shrink-0" />
           <div className="flex-1 min-w-0">
-            <span className="font-semibold text-gray-700">
+            <span className="font-medium text-msg-text">
               {replyTo.sender_name ?? 'User'}
             </span>
-            <span className="text-gray-500 ml-1 truncate">
+            <span className="text-msg-text-secondary ml-1 truncate">
               {replyTo.is_deleted ? 'Message deleted' : (replyTo.body ?? '[attachment]')}
             </span>
           </div>
           <button
             onClick={() => setReplyTo(null)}
-            className="text-gray-400 hover:text-gray-600 shrink-0"
+            className="text-msg-text-tertiary hover:text-msg-text-secondary shrink-0 transition-colors duration-150"
           >
             <X size={14} />
           </button>
@@ -773,9 +774,9 @@ export default function ChatPane({
       )}
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-3">
+      <div className="shrink-0 msg-border-t bg-msg-surface" style={{ padding: '10px 14px' }}>
         {composerLocked && (
-          <div className="mb-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs px-3 py-2">
+          <div className="mb-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] px-3 py-2">
             You can send one message after submitting your proposal. Wait for the
             client to respond before sending another.
           </div>
@@ -788,14 +789,18 @@ export default function ChatPane({
           accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip"
           onChange={handleFileChange}
         />
-        <div className="flex items-end gap-2 bg-[#F3F4F6] rounded-2xl px-3 py-2">
+        <div
+          className="flex items-end gap-2 bg-msg-canvas msg-border rounded-[18px]"
+          style={{ padding: '4px', paddingLeft: '12px' }}
+        >
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || composerLocked}
             title={composerLocked ? 'Waiting for client to respond' : 'Attach file'}
-            className="text-gray-500 hover:text-gray-700 shrink-0 disabled:opacity-50 p-1"
+            className="text-msg-text-tertiary hover:text-msg-text-secondary shrink-0 disabled:opacity-40 transition-colors duration-150"
+            style={{ height: '26px', display: 'inline-flex', alignItems: 'center' }}
           >
-            <Paperclip size={20} />
+            <Paperclip size={18} />
           </button>
 
           <textarea
@@ -812,9 +817,9 @@ export default function ChatPane({
             placeholder={
               composerLocked
                 ? 'Waiting for the client to respond…'
-                : 'Type a message...'
+                : 'Type a message'
             }
-            className="flex-1 resize-none border-0 outline-none text-sm text-gray-900 placeholder:text-gray-500 bg-transparent py-1 leading-5 focus:ring-0 disabled:cursor-not-allowed"
+            className="flex-1 resize-none border-0 outline-none text-[13px] text-msg-text placeholder:text-msg-text-tertiary bg-transparent py-1 leading-5 focus:ring-0 disabled:cursor-not-allowed"
             style={{ maxHeight: '120px', overflowY: 'auto' }}
           />
 
@@ -825,9 +830,12 @@ export default function ChatPane({
               (!text.trim() && pendingAttachments.length === 0) ||
               isSending
             }
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 disabled:bg-gray-300 shrink-0 transition-colors"
+            className={`bg-msg-brand hover:bg-msg-brand-hover text-white rounded-full shrink-0 inline-flex items-center justify-center transition-all duration-150 active:duration-100 ${
+              !text.trim() && pendingAttachments.length === 0 ? 'opacity-40' : 'opacity-100'
+            }`}
+            style={{ width: '26px', height: '26px' }}
           >
-            <Send size={16} />
+            <Send size={13} />
           </button>
         </div>
       </div>

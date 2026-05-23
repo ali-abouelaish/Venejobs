@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { ChevronLeft, Maximize2 } from 'lucide-react';
+import { ChevronLeft, Info } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import ClientLayout from '@/app/layout/ClientLayout';
 import FreelancerLayout from '@/app/layout/FreelancerLayout';
@@ -199,14 +199,14 @@ function MessagesPageInner() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#F7F8FA]">
-        <div className="md:max-w-[1280px] md:mx-auto md:px-6 md:py-6">
+      <div className="min-h-screen bg-msg-canvas">
+        <div className="md:max-w-350 md:mx-auto md:px-6 md:py-6">
           <div
-            className="flex bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-200 overflow-hidden h-screen md:h-[calc(100vh-120px)]"
+            className="flex overflow-hidden h-screen md:h-[calc(100vh-168px)] md:msg-border md:rounded-msg-md bg-msg-surface"
           >
             {/* LEFT -- Chat list */}
             <div
-              className={`flex-col border-r border-gray-200 bg-white h-full overflow-hidden
+              className={`flex-col msg-border-r bg-msg-aside h-full overflow-hidden
                 ${mobileView === 'list' ? 'flex' : 'hidden'} md:flex`}
               style={{ width: '280px', minWidth: '280px', flexShrink: 0 }}
             >
@@ -228,40 +228,40 @@ function MessagesPageInner() {
                 ${mobileView === 'conversation' ? 'flex' : 'hidden'} md:flex`}
             >
               {selectedConversation && currentUserId !== null ? (
-                <div className="flex flex-col h-full bg-white min-w-0">
+                <div className="flex flex-col h-full bg-msg-surface min-w-0">
                   {/* Header */}
-                  <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 shrink-0">
+                  <div className="flex items-center gap-3 px-4 py-3 msg-border-b shrink-0">
                     <button
                       onClick={handleBack}
-                      className="md:hidden shrink-0 text-gray-400 hover:text-gray-600 mr-1"
+                      className="md:hidden shrink-0 text-msg-text-tertiary hover:text-msg-text-secondary transition-colors duration-150"
                     >
                       <ChevronLeft size={20} />
                     </button>
 
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <span className="text-base font-semibold text-gray-900 truncate">
-                        {selectedConversation.job_title}
+                    <Avatar
+                      id={selectedConversation.other_id}
+                      name={selectedConversation.other_name}
+                      src={selectedConversation.other_avatar}
+                      size={32}
+                    />
+
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <span className="text-[13px] font-medium text-msg-text truncate leading-tight">
+                        {selectedConversation.other_name}
                       </span>
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Avatar
-                          id={selectedConversation.other_id}
-                          name={selectedConversation.other_name}
-                          src={selectedConversation.other_avatar}
-                          size={28}
-                        />
-                        <span className="truncate">{selectedConversation.other_name}</span>
-                        <span className="text-gray-300">&#183;</span>
-                        <span className="text-xs text-gray-500 shrink-0">
-                          {formatChatTime(selectedConversation.last_message_sent_at) || 'No activity yet'}
-                        </span>
-                      </div>
+                      <span className="text-[10px] text-msg-text-secondary truncate mt-0.5">
+                        {selectedConversation.last_message_sent_at
+                          ? `Active ${formatChatTime(selectedConversation.last_message_sent_at)}`
+                          : 'No activity yet'}
+                      </span>
                     </div>
 
                     <button
                       onClick={handleOpenContact}
-                      className="shrink-0 text-gray-400 hover:text-gray-600"
+                      title="Conversation details"
+                      className="shrink-0 inline-flex items-center justify-center w-6 h-6 text-msg-text-tertiary hover:text-msg-text-secondary transition-colors duration-150"
                     >
-                      <Maximize2 size={18} />
+                      <Info size={16} />
                     </button>
                   </div>
 
@@ -278,8 +278,8 @@ function MessagesPageInner() {
                   </div>
                 </div>
               ) : (
-                <div className="hidden md:flex flex-1 items-center justify-center bg-white">
-                  <p className="text-gray-500 text-sm">Select a conversation</p>
+                <div className="hidden md:flex flex-1 items-center justify-center bg-msg-canvas">
+                  <p className="text-msg-text-secondary text-[13px]">Select a conversation</p>
                 </div>
               )}
             </div>
@@ -309,7 +309,7 @@ function MessagesPageInner() {
             {/* Mobile contact panel */}
             {selectedConversation && (
               <div
-                className={`flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden md:hidden
+                className={`flex-col bg-msg-aside msg-border-l h-full overflow-hidden md:hidden
                   ${mobileView === 'contact' ? 'flex' : 'hidden'}`}
                 style={{ width: '100%', minWidth: '260px', flexShrink: 0 }}
               >
@@ -333,7 +333,7 @@ function MessagesPageInner() {
               user &&
               sidePanelContractId && (
                 <div
-                  className="hidden md:flex flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden"
+                  className="hidden md:flex flex-col bg-msg-aside msg-border-l h-full overflow-hidden"
                   style={{ width: '525px', minWidth: '525px', flexShrink: 0 }}
                 >
                   <ContractSidePanel
@@ -352,7 +352,7 @@ function MessagesPageInner() {
             {/* RIGHT (desktop) -- Contact panel (hidden when contract side panel is open) */}
             {selectedConversation && !sidePanelContractId && (
               <div
-                className={`hidden flex-col bg-[#FAFBFC] border-l border-gray-200 h-full overflow-hidden
+                className={`hidden flex-col bg-msg-aside msg-border-l h-full overflow-hidden
                   ${showContactPanel ? 'md:flex' : 'md:hidden'}`}
                 style={{ width: '320px', minWidth: '320px', flexShrink: 0 }}
               >

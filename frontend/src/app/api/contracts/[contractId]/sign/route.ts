@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
 import { broadcastToWs } from '@/lib/ws';
+import { notifyContractSigned } from '@/lib/email/notifications';
 
 interface SignBody {
   typedName: string;
@@ -169,6 +170,8 @@ export async function POST(
       });
     }
   }
+
+  await notifyContractSigned(contractId, userId);
 
   return NextResponse.json({ contract: fullContract });
 }

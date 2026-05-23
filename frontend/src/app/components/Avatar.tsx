@@ -24,28 +24,39 @@ export default function Avatar({
   name,
   src,
   size = 32,
+  online,
 }: {
   id: number | string;
   name?: string;
   src?: string | null;
   size?: number;
+  online?: boolean;
 }) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name ?? ''}
-        width={size}
-        height={size}
-        className="rounded-full object-cover flex-shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  const initial = (name?.[0] ?? '?').toUpperCase();
-  return (
+  const dot = online !== undefined && (
+    <span
+      aria-hidden
+      className="absolute bottom-0 right-0 rounded-full"
+      style={{
+        width: 8,
+        height: 8,
+        background: online ? '#10B981' : '#D1D5DB',
+        boxShadow: '0 0 0 1.5px #FFFFFF',
+      }}
+    />
+  );
+
+  const inner = src ? (
+    <img
+      src={src}
+      alt={name ?? ''}
+      width={size}
+      height={size}
+      className="rounded-full object-cover shrink-0"
+      style={{ width: size, height: size }}
+    />
+  ) : (
     <div
-      className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
+      className="rounded-full flex items-center justify-center text-white font-medium shrink-0"
       style={{
         width: size,
         height: size,
@@ -53,7 +64,19 @@ export default function Avatar({
         fontSize: size * 0.4,
       }}
     >
-      {initial}
+      {(name?.[0] ?? '?').toUpperCase()}
     </div>
+  );
+
+  if (!dot) return inner;
+
+  return (
+    <span
+      className="relative inline-flex shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {inner}
+      {dot}
+    </span>
   );
 }

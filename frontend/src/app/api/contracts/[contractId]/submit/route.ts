@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
 import { broadcastToWs } from '@/lib/ws';
+import { notifyContractSubmitted } from '@/lib/email/notifications';
 
 /** POST /api/contracts/[contractId]/submit */
 export async function POST(
@@ -128,6 +129,8 @@ export async function POST(
   }
 
   await broadcastContract(contract.conversation_id, 'contract_updated', fullContract);
+
+  await notifyContractSubmitted(contractId, userId);
 
   return NextResponse.json({ contract: fullContract });
 }

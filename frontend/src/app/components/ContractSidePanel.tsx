@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   X,
   FileText,
@@ -212,6 +213,326 @@ function SignSection({
   );
 }
 
+// ─── Payment section (shown when contract.status === 'accepted') ────────────
+
+function formatMinorPrice(amount: number, currency: string): string {
+  return `${currency.toUpperCase()} ${(amount / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function PaymentSection({
+  contract,
+  currentUserId,
+  onPay,
+  onDeliver,
+  onAccept,
+  onOpenDispute,
+  busyAction,
+}: {
+  contract: ContractData;
+  currentUserId: number;
+  onPay: () => void;
+  onDeliver: () => void;
+  onAccept: () => void;
+  onOpenDispute: () => void;
+  busyAction: string | null;
+}) {
+  const rev = contract.currentRevision;
+  if (!rev) return null;
+
+  const isClient = currentUserId === contract.clientId;
+  const isFreelancer = currentUserId === contract.freelancerId;
+  const payment = contract.payment;
+  const connectReady = contract.freelancerConnectReady;
+
+  if (payment) {
+    const amountStr = formatMinorPrice(payment.amount, payment.currency);
+    const paidStr = new Date(payment.paidAt).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    if (payment.state === 'refunded') {
+      return (
+        <div className="border border-red-200 bg-red-50 rounded-lg p-3 text-[12px] text-red-900">
+          <p className="font-semibold">Refunded</p>
+          <p className="mt-0.5">
+            {amountStr} returned to the client after a dispute.
+          </p>
+        </div>
+      );
+    }
+
+    if (payment.state === 'disputed') {
+      const dispute = payment.openDispute;
+      const raisedByYou = dispute?.raisedBy === currentUserId;
+      return (
+        <div className="border border-red-200 bg-red-50 rounded-lg p-3 text-[12px] text-red-900">
+          <p className="font-semibold">Dispute open</p>
+          <p className="mt-0.5">
+            Funds are frozen pending review. Our team will reach out.
+          </p>
+          {dispute && (
+            <div className="mt-2 pt-2 border-t border-red-200">
+              <p className="text-[11px] text-red-800 font-semibold">
+                Raised by {raisedByYou ? 'you' : dispute.raisedByName}
+                {' '}on{' '}
+                {new Date(dispute.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+              <p className="mt-1 text-[12px] text-[#374151] whitespace-pre-wrap">{dispute.reason}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (payment.state === 'completed') {
+      return (
+        <div className="border border-green-200 bg-green-50 rounded-lg p-3 text-[12px] text-green-900">
+          <p className="font-semibold">Contract complete</p>
+          <p className="mt-0.5">
+            {amountStr} released to the freelancer.
+          </p>
+        </div>
+      );
+    }
+
+    if (payment.state === 'accepted' || payment.state === 'auto_accepted') {
+      return (
+        <div className="border border-green-200 bg-green-50 rounded-lg p-3 text-[12px] text-green-900">
+          <p className="font-semibold">
+            {payment.state === 'auto_accepted' ? 'Auto-accepted' : 'Accepted'}
+          </p>
+          <p className="mt-0.5">
+            Transfer of {amountStr} to the freelancer is in flight. We&rsquo;ll mark
+            this complete once Stripe confirms.
+          </p>
+        </div>
+      );
+    }
+
+    if (payment.state === 'delivered') {
+      const deadlineStr = payment.autoAcceptDeadline
+        ? new Date(payment.autoAcceptDeadline).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          })
+        : null;
+
+      if (isClient) {
+        return (
+          <div className="space-y-2">
+            <div className="border border-blue-200 bg-blue-50 rounded-lg p-3">
+              <p className="text-[13px] font-semibold text-blue-900">Work delivered</p>
+              <p className="text-[12px] text-[#374151] mt-1">
+                The freelancer marked this contract delivered. Accept to release{' '}
+                <strong>{amountStr}</strong> from escrow.
+                {deadlineStr && (
+                  <>
+                    {' '}If you don&rsquo;t respond by <strong>{deadlineStr}</strong>,
+                    funds release automatically.
+                  </>
+                )}
+              </p>
+              <button
+                onClick={onAccept}
+                disabled={busyAction === 'accept'}
+                className="mt-3 w-full px-3 py-2 bg-green-600 text-white text-[13px] font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {busyAction === 'accept' ? 'Releasing…' : `Accept and release ${amountStr}`}
+              </button>
+            </div>
+            <DisputeLink onClick={onOpenDispute} disabled={busyAction !== null} />
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-2">
+          <div className="border border-blue-200 bg-blue-50 rounded-lg p-3 text-[12px] text-blue-900">
+            <p className="font-semibold">Delivered &mdash; awaiting client acceptance</p>
+            <p className="mt-0.5">
+              {deadlineStr ? (
+                <>
+                  If the client doesn&rsquo;t respond by <strong>{deadlineStr}</strong>,
+                  funds release automatically.
+                </>
+              ) : (
+                <>Funds release once the client accepts.</>
+              )}
+            </p>
+          </div>
+          <DisputeLink onClick={onOpenDispute} disabled={busyAction !== null} />
+        </div>
+      );
+    }
+
+    // payment.state === 'paid' — money is in escrow, work not yet delivered.
+    if (isFreelancer) {
+      return (
+        <div className="space-y-2">
+          <div className="border border-blue-200 bg-blue-50 rounded-lg p-3">
+            <p className="text-[13px] font-semibold text-blue-900">
+              Paid &mdash; ready to deliver
+            </p>
+            <p className="text-[12px] text-[#374151] mt-1">
+              The client paid <strong>{amountStr}</strong> on {paidStr}. Funds are held
+              until you mark the work delivered.
+            </p>
+            <button
+              onClick={onDeliver}
+              disabled={busyAction === 'deliver'}
+              className="mt-3 w-full px-3 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {busyAction === 'deliver' ? 'Marking…' : 'Mark as delivered'}
+            </button>
+          </div>
+          <DisputeLink onClick={onOpenDispute} disabled={busyAction !== null} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <div className="border border-green-200 bg-green-50 rounded-lg p-3 text-[12px] text-green-900">
+          <p className="font-semibold">Payment received</p>
+          <p className="mt-0.5">
+            {amountStr} paid on {paidStr}. Awaiting delivery from the freelancer.
+          </p>
+        </div>
+        <DisputeLink onClick={onOpenDispute} disabled={busyAction !== null} />
+      </div>
+    );
+  }
+
+  if (isClient) {
+    if (!connectReady) {
+      return (
+        <div className="border border-amber-200 bg-amber-50 rounded-lg p-3 text-[12px] text-amber-900">
+          <p className="font-semibold">Payment not available yet</p>
+          <p className="mt-0.5">
+            The freelancer still needs to set up their payout details before you can
+            pay. We&rsquo;ll let you know once they&rsquo;re ready.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="border border-green-200 bg-green-50 rounded-lg p-3">
+        <p className="text-[13px] font-semibold text-green-900">
+          Both parties have signed
+        </p>
+        <p className="text-[12px] text-[#374151] mt-1">
+          Pay <strong>{formatPrice(rev.price, rev.currency)}</strong> to release this
+          contract to the freelancer.
+        </p>
+        <button
+          onClick={onPay}
+          className="mt-3 w-full px-3 py-2 bg-green-600 text-white text-[13px] font-medium rounded-lg hover:bg-green-700 transition-colors"
+        >
+          Pay {formatPrice(rev.price, rev.currency)}
+        </button>
+      </div>
+    );
+  }
+
+  if (isFreelancer) {
+    if (!connectReady) {
+      return (
+        <div className="border border-amber-200 bg-amber-50 rounded-lg p-3 text-[12px] text-amber-900">
+          <p className="font-semibold">Set up payouts to receive payment</p>
+          <p className="mt-0.5">
+            This contract is signed, but the client can&rsquo;t pay until your Stripe
+            payout details are complete.
+          </p>
+          <a
+            href="/freelancer/onboarding"
+            className="inline-block mt-2 text-[12px] font-semibold text-amber-900 underline"
+          >
+            Finish payout setup &rarr;
+          </a>
+        </div>
+      );
+    }
+    return (
+      <div className="border border-green-200 bg-green-50 rounded-lg p-3 text-[12px] text-green-900">
+        <p className="font-semibold">Awaiting payment from the client</p>
+        <p className="mt-0.5">
+          The contract is fully signed. We&rsquo;ll notify you once payment is received.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ─── Dispute link + sheet ───────────────────────────────────────────────────
+
+function DisputeLink({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="block w-full text-center text-[11px] text-[#6B7280] hover:text-red-700 disabled:opacity-50 underline underline-offset-2"
+    >
+      Something wrong? Raise a dispute
+    </button>
+  );
+}
+
+function DisputeSheet({
+  onConfirm,
+  onCancel,
+  busy,
+}: {
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const [reason, setReason] = useState('');
+  const trimmed = reason.trim();
+  return (
+    <div className="border border-red-200 bg-red-50 rounded-lg p-3">
+      <p className="text-[13px] font-semibold text-red-900 mb-1">Raise a dispute</p>
+      <p className="text-[12px] text-[#374151] mb-2">
+        Funds will be frozen and our team will review. Briefly explain what&rsquo;s wrong.
+      </p>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={4}
+        maxLength={2000}
+        placeholder="What happened?"
+        className="w-full px-2 py-1.5 text-[12px] border border-[#D1D5DB] rounded-md focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+      />
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => onConfirm(trimmed)}
+          disabled={busy || trimmed.length === 0}
+          className="flex-1 px-3 py-2 bg-red-600 text-white text-[13px] font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+        >
+          {busy ? 'Submitting…' : 'Open dispute'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="px-3 py-2 border border-[#D1D5DB] text-[#374151] text-[13px] rounded-lg hover:bg-white transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Confirm block for decline / request-revision ───────────────────────────
 
 function ConfirmSection({
@@ -279,12 +600,13 @@ export default function ContractSidePanel({
   onClose,
   onContractLoaded,
 }: Props) {
+  const router = useRouter();
   const [contract, setContract] = useState<ContractData | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [activeSheet, setActiveSheet] = useState<
-    'none' | 'sign' | 'decline' | 'request-revision' | 'revise' | 'edit-draft'
+    'none' | 'sign' | 'decline' | 'request-revision' | 'revise' | 'edit-draft' | 'dispute'
   >('none');
 
   const fetchContract = useCallback(async () => {
@@ -383,6 +705,27 @@ export default function ContractSidePanel({
   const handleCancel = useCallback(async () => {
     await postAction('cancel', null, 'cancel');
   }, [postAction]);
+
+  const handleDeliver = useCallback(async () => {
+    const updated = await postAction('deliver', null, 'deliver');
+    if (updated) toast.success('Marked as delivered');
+  }, [postAction]);
+
+  const handleAccept = useCallback(async () => {
+    const updated = await postAction('accept', null, 'accept');
+    if (updated) toast.success('Funds released to the freelancer');
+  }, [postAction]);
+
+  const handleDispute = useCallback(
+    async (reason: string) => {
+      const updated = await postAction('dispute', { reason }, 'dispute');
+      if (updated) {
+        setActiveSheet('none');
+        toast.success('Dispute opened. Our team will review.');
+      }
+    },
+    [postAction],
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -586,21 +929,33 @@ export default function ContractSidePanel({
             onCancel={() => setActiveSheet('none')}
           />
         )}
+        {activeSheet === 'dispute' && (
+          <DisputeSheet
+            busy={busyAction === 'dispute'}
+            onConfirm={handleDispute}
+            onCancel={() => setActiveSheet('none')}
+          />
+        )}
 
         {/* Terminal outcome message */}
-        {isTerminal && activeSheet === 'none' && (
-          <div
-            className={`border rounded-lg p-3 text-[12px] ${
-              status === 'accepted'
-                ? 'border-green-200 bg-green-50 text-green-900'
-                : 'border-red-200 bg-red-50 text-red-900'
-            }`}
-          >
-            {status === 'accepted' &&
-              'This contract has been fully signed by both parties.'}
+        {isTerminal && activeSheet === 'none' && status !== 'accepted' && (
+          <div className="border rounded-lg p-3 text-[12px] border-red-200 bg-red-50 text-red-900">
             {status === 'declined' && 'This contract was declined.'}
             {status === 'cancelled' && 'This contract was cancelled by the creator.'}
           </div>
+        )}
+
+        {/* Accepted: payment-aware status / CTA */}
+        {status === 'accepted' && activeSheet === 'none' && (
+          <PaymentSection
+            contract={contract}
+            currentUserId={currentUserId}
+            onPay={() => router.push(`/contracts/${contract.id}/pay`)}
+            onDeliver={handleDeliver}
+            onAccept={handleAccept}
+            onOpenDispute={() => setActiveSheet('dispute')}
+            busyAction={busyAction}
+          />
         )}
       </div>
 

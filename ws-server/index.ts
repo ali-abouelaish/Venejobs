@@ -23,9 +23,18 @@ interface Connection {
 /** conversationId → set of open connections */
 const rooms = new Map<string, Set<Connection>>();
 
+/**
+ * userId → number of currently open sockets for that user. Reference
+ * counted because a single user can have multiple tabs / device
+ * connections at the same time (one per conversation). A user is
+ * "online" iff their count is > 0.
+ */
+const userPresence = new Map<number, number>();
+
 function join(conn: Connection): void {
   if (!rooms.has(conn.conversationId)) rooms.set(conn.conversationId, new Set());
   rooms.get(conn.conversationId)!.add(conn);
+  userPresence.set(conn.userId, (userPresence.get(conn.userId) ?? 0) + 1);
 }
 
 function leave(conn: Connection): void {
@@ -33,6 +42,13 @@ function leave(conn: Connection): void {
   if (!room) return;
   room.delete(conn);
   if (room.size === 0) rooms.delete(conn.conversationId);
+  const count = userPresence.get(conn.userId) ?? 0;
+  if (count <= 1) userPresence.delete(conn.userId);
+  else userPresence.set(conn.userId, count - 1);
+}
+
+function isUserOnline(userId: number): boolean {
+  return (userPresence.get(userId) ?? 0) > 0;
 }
 
 function send(ws: WebSocket, payload: unknown): void {
@@ -175,13 +191,30 @@ wsHttpServer.listen(WS_PORT, () => {
 // ─── Internal broadcast HTTP server ──────────────────────────────────────────
 
 const internalServer = http.createServer((req, res) => {
-  if (req.method !== 'POST' || req.url !== '/internal/broadcast') {
-    res.writeHead(404).end();
+  if (req.headers['x-internal-secret'] !== WS_INTERNAL_SECRET) {
+    res.writeHead(401).end('Unauthorized');
     return;
   }
 
-  if (req.headers['x-internal-secret'] !== WS_INTERNAL_SECRET) {
-    res.writeHead(401).end('Unauthorized');
+  // GET /internal/presence?userId=123 → { online: boolean }
+  // Used by the frontend to decide whether to email-notify a recipient
+  // on a new chat message (skip if they have any open WS connection).
+  if (req.method === 'GET' && req.url?.startsWith('/internal/presence')) {
+    const url = new URL(req.url, 'http://localhost');
+    const userIdRaw = url.searchParams.get('userId');
+    const userId = userIdRaw ? Number(userIdRaw) : NaN;
+    if (!Number.isFinite(userId)) {
+      res.writeHead(400).end('Missing or invalid userId');
+      return;
+    }
+    res
+      .writeHead(200, { 'Content-Type': 'application/json' })
+      .end(JSON.stringify({ online: isUserOnline(userId) }));
+    return;
+  }
+
+  if (req.method !== 'POST' || req.url !== '/internal/broadcast') {
+    res.writeHead(404).end();
     return;
   }
 

@@ -42,10 +42,12 @@ export async function auth(): Promise<{ user: AuthUser } | null> {
 
   if (!userId) return null;
 
-  const rows = await sql<{ id: number; name: string; email: string }[]>`
-    SELECT id, name, email FROM users WHERE id = ${userId} LIMIT 1
+  const rows = await sql<{ id: number; name: string; email: string; suspended_at: string | null }[]>`
+    SELECT id, name, email, suspended_at FROM users WHERE id = ${userId} LIMIT 1
   `;
   if (rows.length === 0) return null;
+  if (rows[0].suspended_at) return null;
 
-  return { user: rows[0] };
+  const { id, name, email } = rows[0];
+  return { user: { id, name, email } };
 }

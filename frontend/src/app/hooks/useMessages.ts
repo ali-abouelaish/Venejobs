@@ -49,16 +49,48 @@ export interface ContractSignature {
   signedAt: string;
 }
 
+export type ContractPaymentState =
+  | 'paid'
+  | 'delivered'
+  | 'accepted'
+  | 'auto_accepted'
+  | 'completed'
+  | 'disputed'
+  | 'refunded';
+
+export interface ContractOpenDispute {
+  id: string;
+  raisedBy: number;
+  raisedByName: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface ContractPayment {
+  state: ContractPaymentState;
+  amount: number;
+  currency: string;
+  paidAt: string;
+  deliveredAt: string | null;
+  acceptedAt: string | null;
+  autoAcceptDeadline: string | null;
+  openDispute: ContractOpenDispute | null;
+}
+
 export interface ContractData {
   id: string;
   conversationId: string;
   createdBy: number;
   createdByName: string;
+  clientId: number;
+  freelancerId: number;
   status: string;
   messageId: string | null;
   currentRevision: ContractRevision | null;
   revisionHistory: ContractRevision[];
   signatures: ContractSignature[];
+  payment: ContractPayment | null;
+  freelancerConnectReady: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -454,16 +486,22 @@ export function useMessages(
 
   const markRead = useCallback((messageIds: string[]) => {
     if (messageIds.length === 0) return;
-    wsRef.current?.send(JSON.stringify({ type: 'mark_read', messageIds }));
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'mark_read', messageIds }));
   }, []);
 
   // ── typing ──────────────────────────────────────────────────────────────────
 
   const sendTypingStart = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: 'typing_start' }));
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'typing_start' }));
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => {
-      wsRef.current?.send(JSON.stringify({ type: 'typing_stop' }));
+      const inner = wsRef.current;
+      if (inner?.readyState !== WebSocket.OPEN) return;
+      inner.send(JSON.stringify({ type: 'typing_stop' }));
     }, 3000);
   }, []);
 
@@ -472,17 +510,23 @@ export function useMessages(
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = null;
     }
-    wsRef.current?.send(JSON.stringify({ type: 'typing_stop' }));
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'typing_stop' }));
   }, []);
 
   // ── reactions ───────────────────────────────────────────────────────────────
 
   const addReaction = useCallback((messageId: string, emoji: string) => {
-    wsRef.current?.send(JSON.stringify({ type: 'reaction_add', messageId, emoji }));
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'reaction_add', messageId, emoji }));
   }, []);
 
   const removeReaction = useCallback((messageId: string, emoji: string) => {
-    wsRef.current?.send(JSON.stringify({ type: 'reaction_remove', messageId, emoji }));
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'reaction_remove', messageId, emoji }));
   }, []);
 
   // ── deleteMessage ────────────────────────────────────────────────────────────

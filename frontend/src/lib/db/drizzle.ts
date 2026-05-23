@@ -1,6 +1,11 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
+import * as legacySchema from "./schema";
+import * as stripeSchema from "./schema/stripe";
+import * as servicesSchema from "./schema/services";
+import * as reviewsSchema from "./schema/reviews";
+import * as contractsSchema from "./schema/contracts";
+import * as adminInvitesSchema from "./schema/adminInvites";
 
 const DATABASE_URL = process.env.DATABASE_URL!;
 
@@ -11,5 +16,7 @@ const client = postgres(DATABASE_URL, {
   ssl: "require",
   prepare: false,
 });
+
+const schema = { ...legacySchema, ...stripeSchema, ...servicesSchema, ...reviewsSchema, ...contractsSchema, ...adminInvitesSchema };
 
 export const db = drizzle(client, { schema });

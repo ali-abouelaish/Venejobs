@@ -1,20 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import Button from "@/app/components/button/Button";
 import { Routes } from "@/app/routes";
 import useToastStore from "@/app/store/toastStore";
 import userApiStore from "@/app/store/userStore";
 
-export default function signin() {
+function isSafeNext(value) {
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//");
+}
+
+function SignInForm() {
   const [formData, setformData] = useState({ email: "", password: "" });
+  const [submitting, setSubmitting] = useState(false);
   const showError = useToastStore.getState().showError;
   const storeLogin = userApiStore((s) => s.login);
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
+  const reason = searchParams.get("reason");
 
-  const handleClick = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const res = await storeLogin(formData);
       const token = res?.data?.token;
@@ -23,15 +32,22 @@ export default function signin() {
         document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
       }
       const role = res?.data?.user?.role_name;
+      if (isSafeNext(next)) {
+        window.location.href = next;
+        return;
+      }
       if (role === "client") {
         window.location.href = Routes.client.home;
       } else if (role === "freelancer") {
         window.location.href = Routes.freelancer.home;
+      } else if (role === "admin") {
+        window.location.href = Routes.admin.home;
       } else {
         window.location.href = Routes.home;
       }
     } catch (error) {
       showError(error?.response?.data?.message || error?.message || "Login failed");
+      setSubmitting(false);
     }
   };
 
@@ -39,116 +55,140 @@ export default function signin() {
     setformData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const signupHref = isSafeNext(next)
+    ? `${Routes.auth.signup}?next=${encodeURIComponent(next)}`
+    : Routes.auth.signup;
+
   return (
-    <>
-      {/* Main div */}
-      <div className={`flex ml-120 gap-3 bg-white p-3 h-[650] w-[1000] mt-40`}>
-        {/* Left panel for form */}
-        <div className=" w-[500] h-[570] ">
-          {/* For logo and name */}
-          <div className="m-4 flex gap-2 items-center">
-            <Image
-              src="/logo.png"
-              height={50}
-              style={{ height: 40, width: 40 }}
-              width={50}
-              alt="logo image"
-            />
-            <h2 className="font-sans font-semibold text-gray-400">Venejobs</h2>
-          </div>
-
-          <div className="h-[560] w-[430]  m-10 text-center">
-            <h1 className="font-bold text-gray-800  text-2xl mt-10">
-              Sign in to overpay
-            </h1>
-            <p className="font-normal text-sm m-1">
-              send,spent and save smarter
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white">
+      {/* Left brand panel */}
+      <div className="relative hidden lg:flex lg:w-1/2 bg-primary overflow-hidden">
+        <Image
+          src="/bg-image.png"
+          alt=""
+          fill
+          priority
+          className="object-cover opacity-90"
+        />
+        <div className="absolute inset-0 bg-primary/60" />
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full text-white">
+          <Link href={Routes.home} className="flex items-center gap-2 w-fit">
+            <Image src="/logo.png" alt="Venejobs" width={40} height={40} />
+            <span className="font-semibold text-lg tracking-wide">Venejobs</span>
+          </Link>
+          <div className="flex flex-col gap-6 max-w-md">
+            <h2 className="text-3xl xl:text-4xl font-bold leading-tight tracking-normal">
+              Effortless hiring, inspired work with Venejobs.
+            </h2>
+            <p className="text-white/80 text-base xl:text-lg">
+              Sign back in to manage your projects, talk to clients, and get paid.
             </p>
-
-            <div className="flex justify-evenly items-center mt-5">
-              <Button className="border-1 border-gray-300 w-44 p-1 text-gray-600 rounded cursor-pointer flex gap-1">
-                <Image
-                  src="/google.png"
-                  alt="google image"
-                  width={22}
-                  height={22}
-                />
-                Sign in with Google
-              </Button>
-              <Button className="border-1 border-gray-300 w-44 p-1 text-gray-600 rounded cursor-pointer flex gap-1">
-                <Image
-                  src="/apple.png"
-                  alt="google image"
-                  width={22}
-                  height={22}
-                />
-                Sign in with Apple
-              </Button>
-            </div>
-
-            <div className="flex flex-col  m-4  h-[200] ">
-              <form className="flex flex-col mt-4 gap-3">
-                <input
-                  type="text"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="bg-gray-50 border border-gray-300  text-black text-sm rounded-lg   block w-full p-2.5 focus:border-gray-300 focus:ring-1 focus:outline-none"
-                  placeholder="Email"
-                  required
-                />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Password"
-                  className="bg-gray-50 border border-gray-300  text-black text-sm rounded-lg   block w-full p-2.5 focus:border-gray-300 focus:ring-1 focus:outline-none"
-                />
-                <Button
-                  className="bg-blue-700 text-white h-8 rounded"
-                  type="submit"
-                  onClick={handleClick}
-                >
-                  Sign In
-                </Button>
-              </form>
-
-              <p className="mt-5">
-                Dont have an account?{" "}
-                <Link href={Routes.auth.signup}>
-                  <b>Sign up</b>
-                </Link>
-              </p>
-              <div className="flex justify-around mt-4">
-                <div className="flex justify-around gap-2">
-                  <input type="checkbox" value="Remember me" />
-                  <label>Remember me</label>
-                </div>
-                <Link href="" className="text-blue-600">
-                  Forget Password?
-                </Link>
-              </div>
-            </div>
-            {/* Footer */}
-            <div className="mt-35 flex justify-between">
-              <p className="text-gray-500">Privacy policy</p>
-              <p className="text-gray-500">Copyright 2022</p>
-            </div>
           </div>
-        </div>
-
-        {/* Right panel for image */}
-        <div className=" w-[500] h-[570] ml-4">
-          <Image
-            src="/illustration.jpg"
-            alt="side-image"
-            width={470}
-            height={500}
-            style={{ objectFit: "contain", height: 600, width: 490 }}
-          />
+          <p className="text-white/60 text-sm">
+            &copy; {new Date().getFullYear()} Venejobs. All rights reserved.
+          </p>
         </div>
       </div>
-    </>
+
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 sm:px-12">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
+            <Image src="/logo.png" alt="Venejobs" width={36} height={36} />
+            <span className="font-semibold text-primary text-lg">Venejobs</span>
+          </div>
+
+          {reason === "auth" && (
+            <div
+              role="alert"
+              className="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary"
+            >
+              Please sign in to continue. New here?{" "}
+              <Link href={signupHref} className="font-semibold underline">
+                Create an account
+              </Link>
+              .
+            </div>
+          )}
+
+          <div className="mb-8">
+            <h1 className="text-heading font-bold text-3xl tracking-tight">
+              Welcome back
+            </h1>
+            <p className="text-paragraph text-sm mt-2">
+              Sign in to your Venejobs account to continue.
+            </p>
+          </div>
+
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-heading">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="bg-white border border-lightborder text-heading text-sm rounded-lg w-full p-3 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center">
+                <label htmlFor="password" className="text-sm font-medium text-heading">
+                  Password
+                </label>
+                <Link href="/auth/forgot-password" className="text-xs text-primary font-medium hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                className="bg-white border border-lightborder text-heading text-sm rounded-lg w-full p-3 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                required
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-paragraph cursor-pointer">
+              <input type="checkbox" className="rounded border-lightborder text-primary focus:ring-primary" />
+              Remember me
+            </label>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white h-11 rounded-lg font-semibold tracking-wide transition-all cursor-pointer mt-2"
+            >
+              {submitting ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-paragraph mt-6">
+            Don't have an account?{" "}
+            <Link href={signupHref} className="text-primary font-semibold hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function signin() {
+  return (
+    <Suspense fallback={null}>
+      <SignInForm />
+    </Suspense>
   );
 }

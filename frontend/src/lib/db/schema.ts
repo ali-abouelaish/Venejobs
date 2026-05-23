@@ -45,6 +45,8 @@ export const users = pgTable("users", {
 	passwordResetCode: varchar("password_reset_code", { length: 255 }),
 	passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true, mode: 'string' }),
 	emailSendFailed: boolean("email_send_failed").default(false),
+	suspendedAt: timestamp("suspended_at", { withTimezone: true, mode: 'string' }),
+	suspensionReason: text("suspension_reason"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [

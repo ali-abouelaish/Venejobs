@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, type Contract } from '@/lib/contracts';
 import { broadcastToWs } from '@/lib/ws';
+import { notifyChatMessage } from '@/lib/email/notifications';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -370,6 +371,13 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     }
 
     await broadcastToWs(conversationId, { type: 'new_message', message: fullMessage });
+
+    await notifyChatMessage({
+      conversationId,
+      senderId,
+      body: fullMessage.body,
+      hasAttachments: (fullMessage.attachments?.length ?? 0) > 0,
+    });
 
     return NextResponse.json({ message: fullMessage }, { status: 201 });
   } catch (err) {

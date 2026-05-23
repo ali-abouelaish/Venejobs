@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
+import { notifyContractRevisionSubmitted } from '@/lib/email/notifications';
 
 interface RevisionBody {
   title: string;
@@ -138,6 +139,8 @@ export async function POST(
   }
 
   await broadcastContract(contract.conversation_id, 'contract_updated', fullContract);
+
+  await notifyContractRevisionSubmitted(contractId, userId);
 
   return NextResponse.json({ contract: fullContract });
 }

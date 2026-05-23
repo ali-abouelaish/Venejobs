@@ -1,0 +1,244 @@
+/* ============================================================
+   VeneJobs — Colors & Type
+   Tokens extracted from the Figma file. Two product themes:
+   - Client (navy primary #01237C)
+   - Freelancer (green primary #5BBB7B)
+   DM Sans is the workhorse face; Emblema One is the logotype.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Emblema+One&display=swap");
+
+:root {
+  /* ----- Brand: shared ----- */
+  --brand-ink:        #111111;   /* CTA on light hero, body emphasis */
+  --brand-black:      #000000;   /* footer */
+
+  /* ----- Brand: Client (navy) ----- */
+  --client-primary:        #01237C;   /* hero bg, primary buttons, accent text */
+  --client-primary-hover:  #021c66;
+  --client-primary-active: #001246;
+  --client-primary-tint:   #f1f4ff;   /* subtle navy backgrounds */
+  --client-primary-soft:   #e7ecf7;   /* alert/banner bg */
+
+  /* ----- Brand: Freelancer (green) ----- */
+  --freelancer-primary:        #5BBB7B;
+  --freelancer-primary-hover:  #4ea96d;
+  --freelancer-primary-active: #3f9a5d;
+  --freelancer-primary-deep:   #1A463A;   /* footer green */
+  --freelancer-primary-deeper: #185343;   /* deeper variant */
+  --freelancer-primary-tint:   #f1fcfa;   /* card icon bg */
+  --freelancer-primary-soft:   #e7f6ec;
+
+  /* ----- Accents ----- */
+  --accent-amber:       #FFC107;   /* stars, highlights */
+  --accent-amber-deep:  #E1C03F;
+  --accent-rose:        #FF6B6B;   /* destructive */
+
+  /* ----- Foreground (text) ----- */
+  --fg-1:  #181818;   /* strongest body text, headings */
+  --fg-2:  #333333;   /* default body */
+  --fg-3:  #444444;
+  --fg-4:  #666666;   /* secondary text, meta, captions */
+  --fg-5:  #777777;   /* disabled labels */
+  --fg-on-dark:        #ffffff;
+  --fg-on-dark-muted:  rgba(255,255,255,0.70);
+  --fg-on-dark-subtle: rgba(255,255,255,0.45);
+
+  /* ----- Surfaces ----- */
+  --bg-page:     #ffffff;
+  --bg-subtle:   #fafafa;
+  --bg-muted:    #f5f5f5;
+  --bg-card:     #ffffff;
+  --bg-tag:      #f1f1f1;     /* chip / skill tag */
+  --bg-input:    #ffffff;
+  --bg-image-ph: #B3B1B7;     /* placeholder grey for missing images */
+
+  /* ----- Borders ----- */
+  --border-1: #fafafa;        /* very subtle dividers on dark sections */
+  --border-2: #f1f1f1;        /* default card border, inputs (faint) */
+  --border-3: #e3e3e3;
+  --border-4: #d0d5dd;        /* default form borders */
+  --border-5: #98a2b3;        /* focused/active borders */
+  --border-strong: #444444;
+
+  /* ----- Status ----- */
+  --status-success:    #5BBB7B;
+  --status-success-bg: #e7f6ec;
+  --status-warning:    #FFC107;
+  --status-warning-bg: #fff6dc;
+  --status-error:      #FF6B6B;
+  --status-error-bg:   #ffe9e9;
+  --status-info:       #01237C;
+  --status-info-bg:    #e7ecf7;
+
+  /* ----- Shadows ----- */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 16px -4px rgba(16, 24, 40, 0.08), 0 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-card: 0 4px 24px rgba(16, 24, 40, 0.06);
+  --shadow-elev: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  /* ----- Radii ----- */
+  --radius-xs:    4px;    /* primary buttons on hero */
+  --radius-sm:    8px;    /* small chips, inputs */
+  --radius-md:    12px;   /* cards, secondary cards */
+  --radius-lg:    16px;   /* large cards */
+  --radius-xl:    20px;   /* feature pill cards */
+  --radius-2xl:   24px;
+  --radius-pill:  9999px; /* nav pills, chip pills */
+  --radius-logo:  13px;   /* VJ logo container */
+  --radius-circle: 50%;
+
+  /* ----- Spacing scale ----- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ----- Page rhythm ----- */
+  --page-max:     1420px;     /* content max width on 1920 viewport */
+  --page-pad-x:   250px;      /* default landing padding */
+  --section-y:    96px;
+
+  /* ----- Type ----- */
+  --font-sans:     "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display:  "Emblema One", "DM Sans", serif;  /* logotype */
+  --font-mono:     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Type scale — actual sizes observed in the file */
+  --fs-h1:        64px;    /* landing headline */
+  --fs-h2:        44px;    /* section headlines */
+  --fs-h3:        32px;    /* sub-headings */
+  --fs-h4:        24px;    /* card titles, page sub-titles */
+  --fs-h5:        18px;    /* small headings, button label */
+  --fs-h6:        16px;
+  --fs-body:      16px;    /* default DM Sans 400/500 */
+  --fs-body-sm:   14px;    /* secondary text */
+  --fs-meta:      12px;    /* meta / captions */
+  --fs-overline:  10px;
+
+  --lh-tight:   1.0;     /* most display copy is line-height: 100% */
+  --lh-snug:    1.2;
+  --lh-normal:  1.4;
+  --lh-relaxed: 1.78;    /* 32/18 used in long copy */
+
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+
+  /* ----- Transitions ----- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-med:  200ms;
+  --dur-slow: 320ms;
+}
+
+/* ============================================================
+   Semantic type rules — apply directly to elements
+   ============================================================ */
+
+html { font-family: var(--font-sans); color: var(--fg-2); }
+body { margin: 0; font-size: var(--fs-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+.vj-logotype {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+h1, .vj-h1 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+  margin: 0;
+  text-wrap: balance;
+}
+h2, .vj-h2 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+  margin: 0;
+}
+h3, .vj-h3 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+  margin: 0;
+}
+h4, .vj-h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h4);
+  line-height: 1.3;
+  color: var(--fg-1);
+  margin: 0;
+}
+h5, .vj-h5 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h5);
+  line-height: 1.3;
+  color: var(--fg-1);
+  margin: 0;
+}
+h6, .vj-h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h6);
+  line-height: 1.4;
+  color: var(--fg-1);
+  margin: 0;
+}
+
+p, .vj-p {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: 1.78;        /* ≈32/18 from hero subhead */
+  color: var(--fg-4);
+  margin: 0;
+}
+.vj-lead {
+  font-size: var(--fs-h5);
+  line-height: 1.78;
+  color: var(--fg-on-dark);
+}
+.vj-meta {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--fg-4);
+}
+.vj-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h5);
+  color: var(--client-primary);
+  letter-spacing: 0;
+}
+.vj-tag, .vj-chip {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--fs-body-sm);
+  color: var(--fg-4);
+}
+
+/* Theme switch — wrap a section in .theme-freelancer to flip the brand color */
+.theme-client    { --brand: var(--client-primary);     --brand-hover: var(--client-primary-hover);     --brand-soft: var(--client-primary-soft);     --brand-tint: var(--client-primary-tint); }
+.theme-freelancer{ --brand: var(--freelancer-primary); --brand-hover: var(--freelancer-primary-hover); --brand-soft: var(--freelancer-primary-soft); --brand-tint: var(--freelancer-primary-tint); }
+:root { --brand: var(--client-primary); --brand-hover: var(--client-primary-hover); --brand-soft: var(--client-primary-soft); --brand-tint: var(--client-primary-tint); }

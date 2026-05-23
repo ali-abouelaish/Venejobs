@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { assertConversationAccess } from '@/lib/assertions';
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
+import { notifyContractCancelled } from '@/lib/email/notifications';
 
 /** POST /api/contracts/[contractId]/cancel — only the creator can cancel, and only if not accepted */
 export async function POST(
@@ -59,6 +60,8 @@ export async function POST(
   }
 
   broadcastContract(contract.conversation_id, 'contract_updated', fullContract).catch(() => undefined);
+
+  await notifyContractCancelled(contractId);
 
   return NextResponse.json({ contract: fullContract });
 }
