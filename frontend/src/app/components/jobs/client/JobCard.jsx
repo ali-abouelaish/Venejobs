@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/app/lib/api";
+import jobApiStore from "@/app/store/jobStore";
+import toastStore from "@/app/store/toastStore";
 import SvgIcon from "@/app/components/Utility/SvgIcon";
 import Button from "../../button/Button";
 import Loader from "../../common/Loader";
@@ -16,6 +19,24 @@ export default function JobCard({ item }) {
   const handleDetailsClick = () => {
     setLoading(true);
     router.push(`/client/JobDetail/${item.id}`);
+  };
+
+  const handleEdit = () => {
+    router.push(`/client/jobpost/forms/?id=${item.id}`);
+  };
+
+  const handleRemove = async () => {
+    if (!window.confirm("Remove this posting? It will no longer be visible to freelancers.")) return;
+    try {
+      await api.patch(`api/jobs/${item.id}/active`, { is_active: false });
+      const { fetchJobsByUser } = jobApiStore.getState();
+      if (typeof fetchJobsByUser === "function") fetchJobsByUser(1, 10);
+      toastStore.getState().showSuccess?.("Posting removed");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message || err.message || "Failed to remove posting";
+      toastStore.getState().showError?.(msg);
+    }
   };
 
   return (
@@ -54,14 +75,7 @@ export default function JobCard({ item }) {
             )}
           </Button>
 
-          <div
-            role="button"
-            tabIndex={0}
-            className="hidden lg:flex flex-col gap-2 items-center justify-center text-paragraph cursor-pointer"
-          >
-            <SvgIcon name="More" size={22} />
-            More
-          </div>
+          <MoreMenu onEdit={handleEdit} onRemove={handleRemove} size={22} />
         </div>
       </div>
 
@@ -100,15 +114,70 @@ export default function JobCard({ item }) {
           )}
         </Button>
 
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex flex-col gap-2 items-center justify-center text-paragraph cursor-pointer font-medium text-sm xl:text-base"
-        >
-          <SvgIcon name="More" size={18} />
-          More
-        </div>
+        <MoreMenu onEdit={handleEdit} onRemove={handleRemove} size={18} />
       </div>
+    </div>
+  );
+}
+
+// Self-contained dropdown so each JobCard render produces its own ref/state.
+// (Earlier we shared one ref across the desktop+mobile copies of the button,
+// which made the outside-click handler kill the menu before the item click
+// could fire.)
+function MoreMenu({ onEdit, onRemove, size = 22 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex flex-col gap-2 items-center justify-center text-paragraph cursor-pointer font-medium text-sm xl:text-base"
+      >
+        <SvgIcon name="More" size={size} />
+        More
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-md shadow-lg z-30 py-1"
+          role="menu"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-paragraph hover:bg-gray-50 cursor-pointer"
+            role="menuitem"
+          >
+            Edit posting
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onRemove();
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-50 cursor-pointer"
+            role="menuitem"
+          >
+            Remove posting
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,11 +17,30 @@ export default function FreelancerList() {
   const [searchInput, setSearchInput] = useState("");
   const [skillFilter, setSkillFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showDesktopFilters, setShowDesktopFilters] = useState(true);
+  const [selectedFilters, setSelectedFilters] = useState({
+    experience: [],
+    category: [],
+    skills: [],
+  });
+
+  // Backend filter accepts a single iLike string for skill_name. Search box
+  // wins; otherwise the first checked skill/category/experience option is
+  // used so the sidebar at least has *some* effect end-to-end.
+  const effectiveSkillTerm = (() => {
+    if (skillFilter) return skillFilter;
+    return (
+      selectedFilters.skills[0] ??
+      selectedFilters.category[0] ??
+      selectedFilters.experience[0] ??
+      ""
+    );
+  })();
 
   const fetchFreelancers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await browseFreelancers(page, LIMIT, skillFilter);
+      const res = await browseFreelancers(page, LIMIT, effectiveSkillTerm);
       setFreelancers(res.freelancers ?? []);
       setTotalPages(res.totalPages ?? 1);
     } catch {
@@ -29,7 +48,7 @@ export default function FreelancerList() {
     } finally {
       setLoading(false);
     }
-  }, [page, skillFilter]);
+  }, [page, effectiveSkillTerm]);
 
   useEffect(() => {
     fetchFreelancers();
@@ -74,15 +93,17 @@ export default function FreelancerList() {
             <div className="w-[10%] md:w-1/2">
               <button
                 type="button"
-                className="hidden lg:flex border border-gray-100 bg-white p-2 md:px-11 md:py-4 rounded text-primary text-xs md:text-base items-center gap-4 float-right"
+                onClick={() => setShowDesktopFilters((v) => !v)}
+                aria-pressed={showDesktopFilters}
+                className="hidden lg:flex border border-gray-100 bg-white p-2 md:px-11 md:py-4 rounded text-primary text-xs md:text-base items-center gap-4 float-right cursor-pointer"
                 style={{ boxShadow: "2px 2px 50px 6px #0000000D" }}
               >
                 <SvgIcon name="Filter" color="#01237C" />
-                Filter
+                {showDesktopFilters ? "Hide filters" : "Filter"}
               </button>
               <button
                 type="button"
-                className="flex float-right lg:hidden border border-[#FAFAFA] bg-white p-3 rounded-full text-primary text-xs items-center gap-2"
+                className="flex float-right lg:hidden border border-[#FAFAFA] bg-white p-3 rounded-full text-primary text-xs items-center gap-2 cursor-pointer"
                 onClick={() => setShowFilters(true)}
                 style={{ boxShadow: "2px 2px 50px 6px #0000000D" }}
               >
@@ -94,6 +115,12 @@ export default function FreelancerList() {
             <FilterSidebar
               showFilters={showFilters}
               setShowFilters={setShowFilters}
+              showDesktopFilters={showDesktopFilters}
+              selectedFilters={selectedFilters}
+              setSelectedFilters={(updater) => {
+                setSelectedFilters(updater);
+                setPage(1);
+              }}
             />
             <div className="flex flex-col w-full lg:w-[70%] gap-6 lg:gap-10 ml-0 lg:ml-5">
               {loading ? (

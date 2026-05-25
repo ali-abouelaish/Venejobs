@@ -1,11 +1,25 @@
 import { useState } from "react";
 import SvgIcon from "@/app/components/Utility/SvgIcon";
-export default function FilterSidebar({ showFilters, setShowFilters }) {
+
+const DEFAULT_SELECTED = { experience: [], category: [], skills: [] };
+
+export default function FilterSidebar({
+  showFilters,
+  setShowFilters,
+  showDesktopFilters = true,
+  selectedFilters,
+  setSelectedFilters,
+}) {
+  // Backwards-compatible defaults so the component still renders if the
+  // parent forgets to pass props.
+  const selected = selectedFilters ?? DEFAULT_SELECTED;
+  const setSelected = setSelectedFilters ?? (() => {});
+
   return (
     <>
       {showFilters && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
           onClick={() => setShowFilters(false)}
         />
       )}
@@ -18,23 +32,25 @@ export default function FilterSidebar({ showFilters, setShowFilters }) {
   ${showFilters ? "translate-x-0" : "-translate-x-full"}`}
       >
         <button
-          className="mb-4 text-sm text-gray-600 float-right"
+          className="mb-4 text-sm text-gray-600 float-right cursor-pointer"
           onClick={() => setShowFilters(false)}
         >
           <SvgIcon name="Delete" />
         </button>
-        <Filters />
+        <Filters selected={selected} setSelected={setSelected} />
       </div>
 
       {/* ---------------- DESKTOP SIDEBAR ---------------- */}
-      <div className="hidden lg:block lg:w-[30%] p-5">
-        <Filters />
-      </div>
+      {showDesktopFilters && (
+        <div className="hidden lg:block lg:w-[30%] p-5">
+          <Filters selected={selected} setSelected={setSelected} />
+        </div>
+      )}
     </>
   );
 }
 /* ----------------  SIDEBAR FILTER CONTENT ---------------- */
-function Filters() {
+function Filters({ selected, setSelected }) {
   const filterSections = [
     {
       title: "Level of experience will it need?",
@@ -49,21 +65,21 @@ function Filters() {
       title: "Select Category",
       stateKey: "category",
       options: [
-        { label: "All categories", value: "all" },
-        { label: "IT & Programming", value: "it" },
-        { label: "Design & Multimedia", value: "design" },
-        { label: "Marketing & Sales", value: "marketing" },
+        { label: "All categories", value: "" },
+        { label: "IT & Programming", value: "IT" },
+        { label: "Design & Multimedia", value: "Design" },
+        { label: "Marketing & Sales", value: "Marketing" },
       ],
     },
     {
       title: "Skills",
       stateKey: "skills",
       options: [
-        { label: "Web Design", value: "webdesign" },
-        { label: "Figmag", value: "figma" },
-        { label: "User Interface Design", value: "uidesign" },
-        { label: "Mobile UI Design", value: "mobileui" },
-        { label: "UI/UX Prototyping", value: "uiux" },
+        { label: "Web Design", value: "Web Design" },
+        { label: "Figma", value: "Figma" },
+        { label: "User Interface Design", value: "UI Design" },
+        { label: "Mobile UI Design", value: "Mobile UI" },
+        { label: "UI/UX Prototyping", value: "Prototyping" },
       ],
     },
   ];
@@ -74,18 +90,21 @@ function Filters() {
     skills: true,
   });
 
-  const [selectedValues, setSelectedValues] = useState({
-    experience: [],
-    category: [],
-    skills: [],
-  });
+  const clearAll = () =>
+    setSelected({ experience: [], category: [], skills: [] });
+
+  const totalSelected =
+    selected.experience.length +
+    selected.category.length +
+    selected.skills.length;
+
   return (
     <div className="flex flex-col gap-7">
       {filterSections.map((section) => (
         <div key={section.stateKey} className="w-full pr-2">
           {/* Title */}
           <button
-            className="flex justify-start md:justify-between items-center w-full text-left gap-4"
+            className="flex justify-start md:justify-between items-center w-full text-left gap-4 cursor-pointer"
             onClick={() =>
               setOpenDropdowns((prev) => ({
                 ...prev,
@@ -116,30 +135,27 @@ function Filters() {
             <div className="mt-6 flex flex-col gap-4">
               {section.options.map((item) => (
                 <label
-                  key={item.value}
+                  key={item.value || item.label}
                   className="flex items-center gap-3 cursor-pointer"
                 >
                   <input
                     type="checkbox"
-                    className="h-5 w-5 relative cursor-pointer appearance-none border border-gray-300 rounded flex items-center justify-center 
-                            checked:bg-primary checked:border-primary 
-                            checked:before:content-['✔'] 
-                            checked:before:text-white 
-                            checked:before:text-sm 
-                            checked:before:flex 
-                            checked:before:items-center 
-                            checked:before:justify-center 
-                            checked:before:absolute 
+                    className="h-5 w-5 relative cursor-pointer appearance-none border border-gray-300 rounded flex items-center justify-center
+                            checked:bg-primary checked:border-primary
+                            checked:before:content-['✔']
+                            checked:before:text-white
+                            checked:before:text-sm
+                            checked:before:flex
+                            checked:before:items-center
+                            checked:before:justify-center
+                            checked:before:absolute
                             checked:before:inset-0"
-                    checked={selectedValues[section.stateKey].includes(
-                      item.value
-                    )}
+                    checked={selected[section.stateKey].includes(item.value)}
                     onChange={() => {
-                      setSelectedValues((prev) => {
+                      setSelected((prev) => {
                         const isSelected = prev[section.stateKey].includes(
                           item.value
                         );
-
                         return {
                           ...prev,
                           [section.stateKey]: isSelected
@@ -160,6 +176,16 @@ function Filters() {
           )}
         </div>
       ))}
+
+      {totalSelected > 0 && (
+        <button
+          type="button"
+          onClick={clearAll}
+          className="text-primary text-sm font-semibold underline self-start cursor-pointer"
+        >
+          Clear all filters
+        </button>
+      )}
     </div>
   );
 }

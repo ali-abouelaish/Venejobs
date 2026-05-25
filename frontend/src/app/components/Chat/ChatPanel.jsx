@@ -32,9 +32,9 @@ const ChatPanel = ({ chatData = [] }) => {
 
   const [messages, setMessages] = useState(staticMessages);
   return (
-    <div>
-      <div className="flex  gap-2 border border-gray-200 rounded-2xl shadow-2xs w-full">
-        <div className="flex border-r border-gray-200 flex-col gap-3  mt-6 px-4">
+    <div className="h-full">
+      <div className="flex gap-2 border border-gray-200 rounded-2xl shadow-2xs w-full h-full overflow-hidden">
+        <div className="flex border-r border-gray-200 flex-col gap-3 mt-6 px-4 overflow-y-auto min-w-[260px]">
           <div className="flex justify-between  items-center ">
             <h2 className="font-semibold text-lg text-heading">Chats</h2>
             <SvgIcon name="More" />
@@ -84,7 +84,7 @@ const ChatPanel = ({ chatData = [] }) => {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between py-2  w-[610px] ">
+        <div className="flex flex-col justify-between py-2 w-[610px] h-full min-h-0">
           <div className="flex  items-center gap-3 h-20 border-b border-gray-200">
             <img
               src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
@@ -105,7 +105,7 @@ const ChatPanel = ({ chatData = [] }) => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+          <div className="flex flex-col gap-4 p-4 overflow-y-auto flex-1 min-h-0">
             {messages.map((msg) => (
               <div
                 key={msg.id}

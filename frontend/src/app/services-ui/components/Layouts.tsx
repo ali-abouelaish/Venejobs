@@ -9,6 +9,7 @@ import '../theme.css';
 import { ToastProvider } from './Feedback';
 import { Avatar, Badge, Logo } from './Primitives';
 import { Icon, IconName } from './Icon';
+import userApiStore from '../../store/userStore';
 // Existing chrome from the app — reused so freelancer/client pages share the
 // same navbar + footer as the rest of the product.
 import FreelancerLayout from '../../layout/FreelancerLayout';
@@ -70,7 +71,7 @@ export function ServicesShell({
 // AdminLayout: sidebar (#0d1119) + topbar. Not in the existing app, created here.
 interface AdminNavItem { key: string; label: string; icon: IconName; route: string; disabled?: boolean }
 const ADMIN_NAV: AdminNavItem[] = [
-  { key: 'aoverview',  label: 'Overview',          icon: 'home',        route: '/admin' },
+  { key: 'ahome',      label: 'Home',              icon: 'home',        route: '/admin' },
   { key: 'asvc',       label: 'Services Queue',    icon: 'list',        route: '/admin/services' },
   { key: 'adisputes',  label: 'Disputes',          icon: 'flag',        route: '/admin/disputes' },
   { key: 'acdisputes', label: 'Contract Disputes', icon: 'fileCheck',   route: '/admin/contract-disputes' },
@@ -86,7 +87,21 @@ export function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? '';
+  const router = useRouter();
+  const { logout } = userApiStore() as { logout: () => void };
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const handleSignOut = () => {
+    try {
+      logout();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        document.cookie = 'token=; path=/; max-age=0';
+      }
+    } finally {
+      router.push('/');
+    }
+  };
   const heading =
     title ??
     (pathname.startsWith('/admin/services') ? 'Service Review' :
@@ -97,8 +112,11 @@ export function AdminLayout({
      pathname.startsWith('/admin/finances') ? 'Finances' :
      pathname === '/admin' ? 'Admin Overview' : 'Admin');
 
-  const isActive = (route: string) =>
-    route === '/admin' ? pathname === '/admin' : pathname.startsWith(route);
+  const isActive = (route: string) => {
+    if (route === '/') return pathname === '/';
+    if (route === '/admin') return pathname === '/admin';
+    return pathname.startsWith(route);
+  };
 
   return (
     <ToastProvider>
@@ -146,6 +164,26 @@ export function AdminLayout({
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-1)' }}>{heading}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Avatar name="Admin" size={32} />
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--fg-1)',
+                    background: 'transparent',
+                    border: '1px solid var(--border-2)',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                  aria-label="Sign out"
+                >
+                  Sign out
+                </button>
               </div>
             </header>
             <main>
@@ -198,6 +236,24 @@ export function AdminLayout({
                   </Link>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => { setDrawerOpen(false); handleSignOut(); }}
+                style={{
+                  marginTop: 'auto',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'rgba(255,255,255,0.85)',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Sign out
+              </button>
             </div>
           </div>
         )}

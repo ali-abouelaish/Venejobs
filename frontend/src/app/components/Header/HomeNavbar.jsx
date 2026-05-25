@@ -34,6 +34,11 @@ export default function HomeNavbar() {
 
   const NavLinks = [
     {
+      label: "Home",
+      href: Routes.client.home,
+      icon: "",
+    },
+    {
       label: "Find Talent",
       href: "/client/freelancerList",
       icon: "",
@@ -67,6 +72,11 @@ export default function HomeNavbar() {
         user?.role_id === 2
           ? Routes.client.profile.home
           : Routes.freelancer.profile.home,
+    },
+    {
+      label: "Home",
+      href: Routes.client.home,
+      icon: "",
     },
     {
       label: "Find Talent",

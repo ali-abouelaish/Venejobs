@@ -4,6 +4,10 @@ export async function createJobPost(data) {
   return api.post("api/jobs/create", data);
 }
 
+export async function updateJobPost(id, data) {
+  return api.put(`api/jobs/${id}`, data);
+}
+
 export async function getCategories() {
   return api.get("api/lookup/categories");
 }

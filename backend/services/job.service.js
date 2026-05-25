@@ -156,8 +156,12 @@ async function getJobById(jobId) {
 async function getJobsByUser(userId, skip, limit) {
     const { sequelize: db, Proposal } = require("../models");
 
+    // Removed postings (is_active=false) are excluded so "Remove posting"
+    // actually disappears from the client's My Jobs list.
+    const where = { client_id: userId, is_active: true };
+
     const jobs = await Job.findAll({
-        where: { client_id: userId },
+        where,
         order: [["created_at", "DESC"]],
         offset: skip,
         limit: Number(limit),
@@ -173,9 +177,7 @@ async function getJobsByUser(userId, skip, limit) {
         }
     });
 
-    const total = await Job.count({
-        where: { client_id: userId }
-    });
+    const total = await Job.count({ where });
 
     return { jobs, total };
 }
@@ -192,7 +194,7 @@ async function updateJob(jobId, userId, payload) {
 
 async function getAllJobs(page = 1, limit = 10, filters = {}) {
     const offset = (page - 1) * limit;
-    const where = {};
+    const where = { is_active: true };
 
     if (filters.skills) {
         where.skills = { [Op.contains]: filters.skills };

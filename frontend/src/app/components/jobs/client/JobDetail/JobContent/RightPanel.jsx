@@ -1,6 +1,14 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import SvgIcon from "@/app/components/Utility/SvgIcon";
+import api from "@/app/lib/api";
+import toastStore from "@/app/store/toastStore";
 
 const RightPanel = ({ job }) => {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
   if (!job) return null;
 
   const jobUrl = typeof window !== "undefined"
@@ -11,19 +19,46 @@ const RightPanel = ({ job }) => {
     if (jobUrl) navigator.clipboard.writeText(jobUrl).catch(() => {});
   }
 
+  const handleEdit = () => {
+    router.push(`/client/jobpost/forms/?id=${job.id}`);
+  };
+
+  const handleRemove = async () => {
+    if (busy) return;
+    if (!window.confirm("Remove this posting? It will no longer be visible to freelancers.")) return;
+    setBusy(true);
+    try {
+      await api.patch(`api/jobs/${job.id}/active`, { is_active: false });
+      toastStore.getState().showSuccess?.("Posting removed");
+      router.push("/client");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message || err.message || "Failed to remove posting";
+      toastStore.getState().showError?.(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="lg:w-56 flex flex-col-reverse lg:flex-col gap-8 lg:border-l border-[#44444414] lg:pl-6">
 
       {/* Actions */}
       <div className="flex flex-col gap-4">
-        <button className="text-primary w-full font-medium text-base flex items-center gap-4 cursor-pointer hover:opacity-75">
+        <button
+          type="button"
+          onClick={handleEdit}
+          className="text-primary w-full font-medium text-base flex items-center gap-4 cursor-pointer hover:opacity-75"
+        >
           <SvgIcon name="PostEdit" /> Edit posting
         </button>
-        <button className="text-primary w-full font-medium text-base flex items-center gap-4 cursor-pointer hover:opacity-75">
-          <SvgIcon name="Eye2" size={22} /> View posting
-        </button>
-        <button className="text-red-500 w-full font-medium text-base flex items-center gap-4 cursor-pointer hover:opacity-75">
-          <SvgIcon name="DeleteRed" size={22} /> Remove posting
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={busy}
+          className="text-red-500 w-full font-medium text-base flex items-center gap-4 cursor-pointer hover:opacity-75 disabled:opacity-50"
+        >
+          <SvgIcon name="DeleteRed" size={22} /> {busy ? "Removing…" : "Remove posting"}
         </button>
       </div>
 
@@ -63,7 +98,7 @@ const RightPanel = ({ job }) => {
           />
           <button
             onClick={copyLink}
-            className="text-primary font-semibold text-sm text-left hover:underline"
+            className="text-primary font-semibold text-sm text-left hover:underline cursor-pointer"
           >
             Copy link
           </button>

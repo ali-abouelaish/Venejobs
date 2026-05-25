@@ -420,7 +420,7 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
       </Card>
 
       <div className="vj-two-col">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
           <Card padding={24}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-1)', margin: 0, marginBottom: 16 }}>Timeline</h3>
             <OrderTimeline
@@ -445,25 +445,25 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
           )}
 
           {deliveries.length > 0 && (
-            <Card padding={24}>
+            <Card padding={24} style={{ minWidth: 0, overflow: 'hidden' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-1)', margin: 0, marginBottom: 16 }}>Deliveries</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                 {deliveries.map((d, i) => (
                   <div
                     key={d.id}
-                    style={{ paddingBottom: 16, borderBottom: i < deliveries.length - 1 ? '1px solid var(--border-2)' : 'none' }}
+                    style={{ paddingBottom: 16, borderBottom: i < deliveries.length - 1 ? '1px solid var(--border-2)' : 'none', minWidth: 0 }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                       <Badge tone="info" dot={false}>Delivery {deliveries.length - i}</Badge>
                       <span style={{ fontSize: 12, color: 'var(--fg-4)' }}>{relTimeOrFallback(d.createdAt)}</span>
                     </div>
                     {d.message && (
-                      <p style={{ fontSize: 14, color: 'var(--fg-3)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>
+                      <p style={{ fontSize: 14, color: 'var(--fg-3)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                         {d.message}
                       </p>
                     )}
                     {d.attachments?.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12, minWidth: 0 }}>
                         {d.attachments.map(a => <AttachmentItem key={a.r2Key} file={a} orderId={order.id} />)}
                       </div>
                     )}
@@ -474,9 +474,9 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
           )}
 
           {revisions.length > 0 && (
-            <Card padding={24}>
+            <Card padding={24} style={{ minWidth: 0, overflow: 'hidden' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-1)', margin: 0, marginBottom: 16 }}>Revision requests</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
                 {revisions.map(r => (
                   <div
                     key={r.id}
@@ -484,10 +484,11 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
                       padding: 14, borderRadius: 10,
                       background: 'var(--status-warning-bg)',
                       borderLeft: '3px solid var(--status-warning)',
+                      minWidth: 0,
                     }}
                   >
                     <div style={{ fontSize: 12, color: '#7a5a00', fontWeight: 600 }}>{shortDate(r.createdAt)}</div>
-                    <p style={{ fontSize: 14, color: 'var(--fg-2)', marginTop: 6, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    <p style={{ fontSize: 14, color: 'var(--fg-2)', marginTop: 6, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       {r.message}
                     </p>
                   </div>
@@ -497,16 +498,16 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
           )}
 
           {disputes.length > 0 && (
-            <Card padding={24} style={{ borderLeft: '3px solid var(--status-error)' }}>
+            <Card padding={24} style={{ borderLeft: '3px solid var(--status-error)', minWidth: 0, overflow: 'hidden' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg-1)', margin: 0, marginBottom: 12 }}>
                 Dispute filed
               </h3>
               {disputes.map(d => (
-                <div key={d.id} style={{ marginBottom: 12 }}>
+                <div key={d.id} style={{ marginBottom: 12, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: 'var(--fg-4)', marginBottom: 6 }}>
                     {shortDate(d.createdAt)} {d.resolution ? `· resolved as ${d.resolution}` : '· open'}
                   </div>
-                  <p style={{ fontSize: 14, color: 'var(--fg-3)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>{d.reason}</p>
+                  <p style={{ fontSize: 14, color: 'var(--fg-3)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{d.reason}</p>
                 </div>
               ))}
             </Card>

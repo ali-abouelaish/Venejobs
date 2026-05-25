@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import ProjectOptions from "./ProjectOptions";
 import BudgetOptions from "./BudgetOptions";
@@ -13,7 +14,12 @@ import Category_Skills_Page from "./CategorySkillsPage/Category_Skills_Page";
 import { JobFormStep } from "./JobFormStep";
 
 const MultiStepForm = () => {
+  const searchParams = useSearchParams();
+  const editId = searchParams?.get("id") || null;
+  const isEdit = !!editId;
+
   const [showConfirmMessage, setshowConfirmMessage] = useState(false);
+  const [hydrated, setHydrated] = useState(!isEdit);
   const showSuccess = toastStore.getState().showSuccess;
   const showError = toastStore.getState().showError;
 
@@ -26,10 +32,7 @@ const MultiStepForm = () => {
     },
   });
 
-  const {
-    handleSubmit,
-    formState: { errors },
-  } = methods;
+  const { handleSubmit, reset } = methods;
 
   const [step, setStep] = useState(JobFormStep.title);
   const [fromReview, setFromReview] = useState(false);
@@ -39,7 +42,36 @@ const MultiStepForm = () => {
   const prevStep = () => {
     setStep((prev) => Math.max(prev - 1, JobFormStep.title));
   };
-  const { create_job, loading } = jobApiStore();
+  const { create_job, update_job, getJobById, job } = jobApiStore();
+
+  // In edit mode, pull the job and pre-fill the form once.
+  useEffect(() => {
+    if (!isEdit) return;
+    getJobById(editId);
+  }, [isEdit, editId, getJobById]);
+
+  useEffect(() => {
+    if (!isEdit || hydrated) return;
+    if (!job || Array.isArray(job)) return;
+
+    const skillNames = Array.isArray(job.skills)
+      ? job.skills.map((s) => s.skill_name ?? s.name).filter(Boolean)
+      : [];
+
+    reset({
+      title: job.title ?? "",
+      description: job.description ?? "",
+      category: job.category ?? "",
+      project_size: job.project_size ?? "",
+      duration: job.duration ?? "",
+      experience_level: job.experience_level ?? "",
+      budget_type: job.budget_type ?? "",
+      budget_amount: job.budget_amount ?? "",
+      hire_count: String(job.hire_count ?? "1"),
+      skills: skillNames,
+    });
+    setHydrated(true);
+  }, [isEdit, hydrated, job, reset]);
 
   const onSubmit = async (data) => {
     try {
@@ -58,9 +90,8 @@ const MultiStepForm = () => {
       if (data.skills?.length) {
         const skillsPayload = data.skills.map((skill) => ({
           name: skill,
-          level: "Intermediate", // static level for skill
+          level: "Intermediate",
         }));
-
         formData.append("skills", JSON.stringify(skillsPayload));
       }
 
@@ -68,19 +99,19 @@ const MultiStepForm = () => {
         formData.append("attachment", data.attachment[0]);
       }
 
-      const res = await create_job(formData);
+      const res = isEdit
+        ? await update_job(editId, formData)
+        : await create_job(formData);
 
       if (res?.success) {
-        showSuccess("Job posted successfully 🎉");
+        showSuccess(isEdit ? "Job updated 🎉" : "Job posted successfully 🎉");
         setshowConfirmMessage(true);
       }
     } catch (error) {
-      showError("JOB CREATE ERROR 👉", error);
-
       showError(
         error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0]?.msg ||
-        "Something went wrong. Please try again."
+          error?.response?.data?.errors?.[0]?.msg ||
+          "Something went wrong. Please try again."
       );
     }
   };
@@ -153,7 +184,20 @@ const MultiStepForm = () => {
       <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto my-10 lg:my-20">
-            {renderStep()}
+            {isEdit && !hydrated ? (
+              <div className="text-center my-20 text-lg font-medium text-paragraph">
+                Loading job…
+              </div>
+            ) : (
+              <>
+                {isEdit && (
+                  <p className="mb-4 inline-flex items-center gap-2 rounded bg-[#5BBB7B0D] text-primary text-sm font-semibold px-3 py-1">
+                    Editing existing posting
+                  </p>
+                )}
+                {renderStep()}
+              </>
+            )}
           </div>
         </form>
       </FormProvider>

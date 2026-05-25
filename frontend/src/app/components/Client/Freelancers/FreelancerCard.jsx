@@ -1,7 +1,30 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import SvgIcon from "@/app/components/Utility/SvgIcon";
 import ReadMoreBtn from "../../button/ReadMoreBtn";
+
+const FAV_KEY = "venejobs:favorite-freelancers";
+
+function readFavSet() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(FAV_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeFavSet(set) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(FAV_KEY, JSON.stringify([...set]));
+  } catch {
+    /* ignore quota errors */
+  }
+}
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
@@ -16,6 +39,22 @@ export default function FreelancerCard({ freelancer, index, total }) {
   const skills = (freelancer.skills ?? []).map((s) => s.skill_name);
   const profileUrl = `/client/FreelancerProfile/${freelancer.user_id}`;
   const avatar = avatarSrc(user.profile_picture);
+
+  const [isFav, setIsFav] = useState(false);
+  useEffect(() => {
+    setIsFav(readFavSet().has(String(freelancer.user_id)));
+  }, [freelancer.user_id]);
+
+  const toggleFav = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = readFavSet();
+    const key = String(freelancer.user_id);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    writeFavSet(next);
+    setIsFav(next.has(key));
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,10 +95,16 @@ export default function FreelancerCard({ freelancer, index, total }) {
         </Link>
         <div className="hidden md:flex items-center gap-6 w-full md:w-auto">
           <button
-            className="border border-[#FAFAFA] bg-white p-1 md:p-2 rounded-full text-primary text-xs md:text-base flex items-center gap-4 float-right"
+            type="button"
+            onClick={toggleFav}
+            aria-pressed={isFav}
+            aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+            className={`border border-[#FAFAFA] p-1 md:p-2 rounded-full text-xs md:text-base flex items-center gap-4 float-right cursor-pointer transition-colors ${
+              isFav ? "bg-primary text-white" : "bg-white text-primary"
+            }`}
             style={{ boxShadow: "2px 2px 50px 6px #0000000D" }}
           >
-            <SvgIcon name="Heart" />
+            <SvgIcon name="Heart" color={isFav ? "#ffffff" : undefined} />
           </button>
           <Link
             href={profileUrl}
@@ -111,10 +156,16 @@ export default function FreelancerCard({ freelancer, index, total }) {
           View Profile
         </Link>
         <button
-          className="border border-[#FAFAFA] bg-white p-1 md:p-2 rounded-full text-primary text-xs md:text-base flex items-center gap-4 float-right"
+          type="button"
+          onClick={toggleFav}
+          aria-pressed={isFav}
+          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+          className={`border border-[#FAFAFA] p-1 md:p-2 rounded-full text-xs md:text-base flex items-center gap-4 float-right cursor-pointer transition-colors ${
+            isFav ? "bg-primary text-white" : "bg-white text-primary"
+          }`}
           style={{ boxShadow: "2px 2px 50px 6px #0000000D" }}
         >
-          <SvgIcon name="Heart" />
+          <SvgIcon name="Heart" color={isFav ? "#ffffff" : undefined} />
         </button>
       </div>
 

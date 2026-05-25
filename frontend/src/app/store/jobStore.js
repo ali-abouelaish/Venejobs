@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   createJobPost,
+  updateJobPost,
   getAllJobs,
   getBudgetData,
   getCategories,
@@ -41,6 +42,21 @@ const jobApiStore = create((set) => ({
         loading: false,
       });
 
+      throw error;
+    }
+  },
+  update_job: async (id, formdata) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await updateJobPost(id, formdata);
+      set({ loading: false });
+      return res;
+    } catch (error) {
+      set({
+        error:
+          error?.response?.data?.message || "Failed to update job",
+        loading: false,
+      });
       throw error;
     }
   },

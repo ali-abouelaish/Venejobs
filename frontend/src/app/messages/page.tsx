@@ -63,7 +63,16 @@ function MessagesPageInner() {
       const res = await fetch('/api/inbox');
       if (!res.ok) throw new Error('Failed');
       const data = (await res.json()) as { inbox: InboxRow[] };
-      setConversations((data.inbox ?? []).map(normalizeInboxRow));
+      const activeId = selectedConversationIdRef.current;
+      const normalized = (data.inbox ?? []).map(normalizeInboxRow).map((c) =>
+        // The conversation the user is actively viewing is always treated as
+        // read — masks the brief server-side lag between read POST and the
+        // next fetchInbox (and matches what the user sees on screen).
+        activeId && c.conversation_id === activeId
+          ? { ...c, unread_count: 0 }
+          : c,
+      );
+      setConversations(normalized);
       setError(null);
     } catch {
       setError('Failed to load conversations');
@@ -149,6 +158,15 @@ function MessagesPageInner() {
     setSidePanelContractId(null);
     setActiveContractInfo(null);
     setMobileView('conversation');
+    // Optimistically clear the unread dot so it doesn't linger while we wait
+    // for the read POST → server → inbox refetch round-trip.
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.conversation_id === conv.conversation_id
+          ? { ...c, unread_count: 0 }
+          : c,
+      ),
+    );
   }
 
   function handleOpenContract(contractId: string) {
