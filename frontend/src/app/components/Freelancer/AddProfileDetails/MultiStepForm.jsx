@@ -44,29 +44,46 @@ const MultiStepForm = () => {
 
     const updatedData = {
       ...data,
-      skills: data.skills.map((skill) => ({
+      skills: (data.skills ?? []).map((skill) => ({
         name: skill,
         level: "Intermediate",
       })),
-      experiences: data.experiences.map(exp => {
+      experiences: (data.experiences ?? []).map(exp => {
         if (exp.is_current) {
           // end_month & end_year remove kar do
           const { end_month, end_year, ...rest } = exp;
           return rest;
         }
         return exp;
-      })
+      }),
+      educations: data.educations ?? [],
+      languages: data.languages ?? [],
+      portfolios: data.portfolios ?? [],
     };
 
     try {
       const res = await SavePersonalDetails(updatedData);
-      if (res.success) {
+      if (res?.success) {
         setshowConfirmMessage(true);
+      } else {
+        showError("Save failed", res?.message || "Server did not confirm success");
       }
     } catch (error) {
-      showError(error)
-
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Save personal data failed";
+      showError("Save failed", msg);
     }
+  };
+
+  const onInvalid = (formErrors) => {
+    // Surface RHF validation errors that would otherwise silently block submit.
+    const firstField = Object.keys(formErrors)[0];
+    const firstMsg =
+      formErrors?.[firstField]?.message ||
+      `Please review the "${firstField}" field`;
+    showError("Please fix form errors", firstMsg);
   };
 
   const renderStep = () => {
@@ -139,7 +156,7 @@ const MultiStepForm = () => {
   return (
     <>
       <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
           <div className="w-full max-w-[90%] sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1240px] 2xl:max-w-[1400px] mx-auto my-10 lg:my-20">
             {renderStep()}
           </div>

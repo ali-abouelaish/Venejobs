@@ -1,17 +1,12 @@
-import React, { lazy, Suspense } from "react";
 import ClientProfileLayout from "@/app/layout/ClientProfileLayout";
-import PersonalInfoSkeleton from "@/app/components/Skeletons/PersonalInfoSkeleton";
+import ClientInfoEditor from "./ClientInfoEditor";
 
-const PersonalInfoForm = lazy(() =>
-  import("@/app/components/profile/PersonalInfoForm")
-);
+export const dynamic = "force-dynamic";
 
 export default function Info() {
   return (
     <ClientProfileLayout>
-      <Suspense fallback={<PersonalInfoSkeleton />}>
-        <PersonalInfoForm />
-      </Suspense>
+      <ClientInfoEditor />
     </ClientProfileLayout>
   );
 }

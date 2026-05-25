@@ -1,18 +1,5 @@
-"use client";
-import MultiStepForm from "@/app/components/Freelancer/AddProfileDetails/MultiStepForm";
-import FreelancerLayout from "@/app/layout/FreelancerLayout";
+import { redirect } from "next/navigation";
 
-import { useRouter } from "next/navigation";
-
-
-export default function page() {
-  const router = useRouter();
-
-  return (
-    <>
-      <FreelancerLayout>
-        <MultiStepForm />
-      </FreelancerLayout>
-    </>
-  );
+export default function Page() {
+  redirect("/freelancer/profile/edit");
 }

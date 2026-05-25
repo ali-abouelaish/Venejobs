@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const { Job } = require("../models");
 const JOB_MESSAGES = require("../commonMessages/jobResponseMessages");
 const { User } = require("../models");

@@ -32,7 +32,8 @@ export const Routes = {
 
   freelancer: {
     home: "/freelancer",
-    get_started: "/freelancer/addProfileDetails",
+    get_started: "/freelancer/profile/edit",
+    edit_profile: "/freelancer/profile/edit",
     page: "/freelancer/home",
     chat: "/freelancer/chat/",
     jobdetail: "/freelancer/JobDetail/",

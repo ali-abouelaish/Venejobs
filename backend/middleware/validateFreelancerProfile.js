@@ -47,7 +47,7 @@ module.exports = (req, res, next) => {
     }
 
     // experiences
-    for (const exp of body.experiences) {
+    for (const exp of (body.experiences ?? [])) {
         const requiredExpFields = [
             "job_title",
             "company",
@@ -84,7 +84,7 @@ module.exports = (req, res, next) => {
 
 
     // educations
-    for (const edu of body.educations) {
+    for (const edu of (body.educations ?? [])) {
         const requiredEduFields = [
             "institution_name",
             "degree",
@@ -105,7 +105,7 @@ module.exports = (req, res, next) => {
     }
 
     // languages
-    for (const lang of body.languages) {
+    for (const lang of (body.languages ?? [])) {
         if (!lang.language || !lang.proficiency) {
             return res.status(400).json({
                 message: "language and proficiency are required"
@@ -114,7 +114,7 @@ module.exports = (req, res, next) => {
     }
 
     // portfolios
-    for (const port of body.portfolios) {
+    for (const port of (body.portfolios ?? [])) {
         if (!port.title || !port.project_url) {
             return res.status(400).json({
                 message: "portfolio title and project_url are required"

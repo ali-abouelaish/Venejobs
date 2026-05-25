@@ -12,11 +12,11 @@ const ShowExperiencePage = ({
   prevStep,
   nextStep,
 }) => {
+  const { trigger } = useFormContext();
+
   if (!fields || fields.length === 0) {
     return <p className="text-gray-500">No experience added yet.</p>;
   }
-
-  const { trigger } = useFormContext();
 
   const handleNext = async () => {
     const valid = await trigger("experiences");

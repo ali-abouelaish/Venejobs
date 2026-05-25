@@ -415,7 +415,9 @@ const createExperience = async (userId, data) => {
         company: data.company,
         job_title: data.job_title,
         start_year: data.start_year,
-        start_month: data.start_month
+        // start_month is varchar — cast to string so integer inputs don't
+        // produce "operator does not exist: character varying = integer".
+        start_month: String(data.start_month)
       },
       transaction
     });

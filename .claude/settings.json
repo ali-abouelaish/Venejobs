@@ -1,6 +1,6 @@
 {
   "permissions": {
     "defaultMode": "auto",
-    "deny": ["Edit(.env*)", "Bash(git push*)"]
+    "deny": ["Bash(git push*)"]
   }
 }

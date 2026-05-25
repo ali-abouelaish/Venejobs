@@ -7,7 +7,7 @@ import Image from "next/image";
 import { signupapi } from "@/app/lib/auth/auth.api";
 import Button from "@/app/components/button/Button";
 
-export default function signup() {
+export default function Signup() {
   const [formData, setformData] = useState({
     name: "",
     lastname: "",

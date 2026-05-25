@@ -2,351 +2,455 @@
 
 Guidance for Claude Code when working in this repository.
 
-## Repo layout — read this first
+## Repo layout
 
-`D:\Venejobs\` is the **main monorepo**. Single git repo, single remote:
+`D:\Venejobs\` is the monorepo. Single git repo, single remote
 `https://github.com/ali-abouelaish/Venejobs.git`, default branch `main`.
+No git submodules — `frontend/` was absorbed long ago.
 
-The old structure (wrapper repo + nested `frontend/` submodule pointing at
-`rivendesu12/Venejobs.git` + independent `backend/` / `ws-server/` repos)
-no longer exists. The frontend submodule was absorbed into the monorepo
-(commits `8714bdf` "Remove frontend submodule pointer" and `b4a60b5`
-"Absorb frontend submodule into monorepo"). Do not run `git submodule`
-commands — there are no submodules.
+npm workspaces (root `package.json`):
 
-Workspaces (not nested repos):
+- `frontend/` — Next.js 16 App Router. UI **and** the bulk of the API
+  surface (Drizzle-backed). This is where new server code lives.
+- `backend/` — Express 5 + Sequelize. Still serves auth, jobs, proposals,
+  orders, lookups, and freelancer-profile CRUD for the React client. Not
+  frozen — still receives bug fixes — but new features go in the Next.js
+  app.
+- `ws-server/` — Standalone TypeScript WebSocket relay.
 
-- `frontend/` — Next.js app (UI + newer API routes).
-- `backend/` — Express + Sequelize legacy API. See freeze rules below.
-- `ws-server/` — standalone TypeScript WebSocket server.
-- `migrations/`, `scripts/` — raw SQL migrations and utilities for the
-  frontend-owned tables (messaging, contracts).
-
-npm workspaces are wired up at the root `package.json`. From the root:
+Commits go in this single repo. `git` from the root handles everything;
+do not `cd` into a workspace to commit.
 
 ```bash
-npm install        # installs deps for all three workspaces
-npm run dev        # runs all three via concurrently (see README)
+npm install   # installs all three workspaces
+npm run dev   # concurrently runs frontend + backend + ws-server
 ```
 
-Commits go in this single repo. Do **not** `cd` into a subfolder to commit
-— `git` at the root handles everything. `git add` from the root; paths are
-relative to the root (e.g. `git add frontend/src/app/...`).
+Companion docs:
 
-## ⚠️ Migration Freeze (Active)
+- `README.md` — first-time setup and env var template.
+- `MIGRATION.md` — Drizzle ↔ Sequelize ownership boundary and the
+  rules for generating migrations.
+- `SERVICES_HANDOFF.md` — Services-marketplace (Fiverr-style) feature
+  reference: state machine, endpoints, Stripe flow, test quirks.
 
-Mid-migration from 3-service architecture (Express + Next + ws-server) to
-unified Next.js + standalone ws-server (Path B). Rules are strict until
-the migration completes.
+## Services and how to start them
 
-### Current on-disk state
+| Service   | Port  | Start (from root)                | Notes |
+|-----------|-------|----------------------------------|-------|
+| frontend  | 5173  | `npm -w frontend run dev`        | `next dev -p 5173` |
+| backend   | 4000  | `npm -w backend run dev`         | `nodemon server.js`; auto-runs Sequelize migrations in `NODE_ENV=development` |
+| ws-server | 4002  | `npm -w ws-server run dev`       | Public WebSocket port |
+| ws internal | 4001 | (same as ws-server)             | HTTP server for internal broadcast + presence; not user-facing |
 
-- `backend/` — Express + Sequelize REST API. **FROZEN.** Maintenance only.
-  No new routes, controllers, models, migrations, services, or validators.
-  Deleted at end of migration.
-- `frontend/` — Next.js 16.0.7 App Router. Contains UI plus API route
-  handlers under `src/app/api/` (contracts, conversations, messages,
-  proposals, inbox, upload/presign, ws-token). Becomes the unified app.
-- `frontend/src/app/api/` — **FROZEN** for new routes until Phase 1
-  completes. Bug fixes OK, extensions not OK.
-- `frontend/migrations/` — Raw SQL (`001_messaging_v2.sql`,
-  `002_contracts.sql`). **FROZEN.** Drizzle will own migrations going
-  forward.
-- `frontend/src/lib/` — Shared backend logic for Next.js routes:
-  `assertions.ts` (legacy generic `assertAccess` — deprecated, replace
-  per-resource in Phase 3), `auth.ts`, `contracts.ts`, `db.ts`. New shared
-  logic lives here once Phase 1 conventions are established.
-- `ws-server/` — Standalone TypeScript WebSocket server. WS on port 4002,
-  internal broadcast HTTP on port 4001. **ACTIVE.** Schema/auth changes
-  must stay compatible with the upcoming unified schema and shared
-  `JWT_SECRET`.
+Or all three at once: `npm run dev` from the root.
 
-### Deleted, do not recreate
-
-- `frontend/Venejobs/` — dead nested Next.js prototype removed in Phase 0.
-  Origin of the `:5173` Vite-era artifacts. Do not restore.
-
-### If a feature touches a frozen area
-
-Stop and tell the user the area is frozen. Do not work around it by adding
-to a different frozen location. Do not "temporarily" add to `backend/` and
-port later. The correct response is to confirm whether the migration step
-that unblocks the work should happen first.
-
-### Migration plan
-
-`MIGRATION.md` does not yet exist. It will be created as part of Phase 1.
-Do not start a new phase without confirming with the user.
-
-## Phase 1 status — decisions made, scaffolding NOT YET done
-
-Decisions (final, do not relitigate):
-
-- **ORM**: Drizzle
-- **Object storage**: Cloudflare R2 (already wired in existing upload code)
-- **Auth**: keep custom JWT, no library swap
-- **Assertion helpers**: per-resource (`assertConversationAccess`,
-  `assertContractAccess`, etc.), NOT a generic `assertAccess`. Legacy
-  generic helper in `src/lib/assertions.ts` is deprecated, delete in
-  Phase 3.
-- **Schema location**: `frontend/src/lib/schema/<table>.ts`, one file per
-  table
-
-Scaffolding state on disk (verify before trusting):
-
-- `drizzle-orm` installed in `frontend/`. `drizzle-kit` is **NOT**
-  installed.
-- `frontend/drizzle.config.ts` does **NOT** exist.
-- `frontend/src/lib/schema/` does **NOT** exist.
-- `frontend/src/lib/db.ts` exports only `sql` and `listenSql` (postgres.js).
-  No Drizzle `db` export yet.
-- `MIGRATION.md` does not exist.
-
-Phase 1 remaining work (in order):
-
-1. Install `drizzle-kit` as a dev dependency in `frontend/`
-2. Create `frontend/drizzle.config.ts`
-3. Add `db` (Drizzle) export to `frontend/src/lib/db.ts` alongside existing
-   `sql` and `listenSql`
-4. Hand-write `frontend/src/lib/schema/users.ts` from
-   `backend/migrations/20250216132510-create-users.js` + the additive
-   `20251113175644_email_send_failed` migration. The roles FK **column**
-   must be present even though the Drizzle relation to the roles table
-   stays omitted until Phase 3.
-5. Reconcile hand-written `users.ts` against `npx drizzle-kit pull` output
-   until `npx drizzle-kit generate` produces an empty migration (zero drift)
-6. Write the Conventions section into this file
-7. Create `MIGRATION.md`
-
-## Database layer (as of Phase 2)
-
-**Source of truth:** `backend/migrations/*.js` (Sequelize, frozen backend). The DB is owned here.
-
-**Frontend migrations:** `frontend/migrations/*.sql` adds messaging_v2 and contracts tables on top of the Sequelize-owned base schema. These are applied manually via `frontend/scripts/migrate.ts`'s runner.
-
-**⚠️ `frontend/scripts/migrate.ts` contains dead `CREATE TABLE` statements** for `proposals`, `conversations`, and `messages` that use *different column names* than the real Sequelize-owned tables (e.g. `offered_price` vs real `proposed_amount`, `estimated_days` vs real `estimated_duration`, status enum `declined` vs real `rejected`). Do NOT trust migrate.ts as a schema reference. Always check `backend/migrations/` for proposals/jobs/users.
-
-**Drizzle:** Scaffolded in Phase 1 at `frontend/src/lib/db/{schema.ts,drizzle.ts}` + `drizzle.config.ts`. **Not yet used by any route.** The current `schema.ts` was built from `scripts/migrate.ts` and is therefore **wrong for `proposals`**. Phase 1.5 will regenerate it via `drizzle-kit pull` against the live DB. Until then, keep using the raw `postgres` client from `src/lib/db`.
-
-**`src/lib/db/` layout:** directory (not a flat file). Entry is `src/lib/db/index.ts` (the raw `postgres` client). `drizzle.ts` exports a Drizzle instance but nothing imports it yet.
-
-**Known tsc debt (pre-existing, do not fix mid-phase):**
-- `src/app/api/conversations/[id]/stream/route.ts:45` — `sql.unlisten` doesn't exist
-- `src/app/api/proposals/route.ts:48,53` — TransactionSql call-signature quirk
+Production build for frontend: `npm -w frontend run build` then
+`npm -w frontend run start` (binds to 3001).
 
 ## Frontend (`frontend/`)
+
+Next.js 16.0.7, React 19, App Router, Tailwind 4, MUI 7, Zustand, Stripe
+JS/React, Drizzle ORM 0.45, postgres.js, AWS S3 SDK (for R2), zod,
+jsonwebtoken, bcryptjs.
 
 ### Commands
 
 ```bash
-cd frontend
-npm run dev       # next dev on port 5173 (Vite-era port, fix in Phase 5)
-npm run build     # production build
-npm run start     # next start on port 3001
-npm run lint      # ESLint
+npm -w frontend run dev          # next dev -p 5173
+npm -w frontend run build        # next build
+npm -w frontend run start        # next start -p 3001
+npm -w frontend run lint         # ESLint
+npm -w frontend run db:generate  # drizzle-kit generate (needs TTY)
+npm -w frontend run db:migrate   # apply migrations (scripts/db-migrate.ts)
+npm -w frontend run db:studio    # drizzle-kit studio
 ```
 
 No test suite.
 
-**Dev port note**: `:5173` is the actual current Next.js dev port, not just
-a stale CORS allowlist entry. It is set in `package.json` scripts. Do not
-change it until Phase 5 — a lot of existing config assumes it.
+### Environment variables (`frontend/.env.local`)
 
-### Environment variables
+Required:
+- `DATABASE_URL` — Postgres (Neon), `sslmode=require`
+- `JWT_SECRET` — must match `backend/.env` and `ws-server/.env`
+- `WS_SECRET` — must match `ws-server/.env`
+- `WS_INTERNAL_SECRET` — must match `ws-server/.env`
+- `WS_INTERNAL_URL` — e.g. `http://localhost:4001`
+- `NEXT_PUBLIC_BASE_URL` — e.g. `http://localhost:4000`
+- `NEXT_PUBLIC_WS_URL` — e.g. `ws://localhost:4002`
+- R2: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+  `R2_BUCKET`, `R2_PUBLIC_URL`
+- Stripe: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
+  `STRIPE_WEBHOOK_SECRET`
+- `CRON_SECRET` — header value `/api/cron/*` checks
 
-Single file: `frontend/.env.local`. [VERIFY: run `cat frontend/.env.local`
-and list key names only, never values, when Phase 1 scaffolding lands.]
-Expected keys at minimum: `DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL`,
-`WS_INTERNAL_SECRET`, and R2 credentials.
+### App Router layout (`src/app/`)
 
-### UI architecture
+Pages:
+- `page.jsx` — landing
+- `auth/{signin,signup,forgot-password}/`
+- `client/` — client dashboard: `jobpost`, `freelancerList`, `FreelancerProfile`,
+  `HireFreelancer`, `HirePayment`, `InviteTalent`, `JobDetail`, `Service`,
+  `ServiceDetail`, `orders`, `chat`, `billingMethod`
+- `freelancer/` — freelancer dashboard: `home`, `jobSearch`, `JobDetail`,
+  `AllContract`, `profileData`, `addProfileDetails`, `AddService`,
+  `services`, `orders`, `onboarding`, `finances`, `chat`
+- `services/` (public browse) + `services/[id]`
+- `services-ui/` — shared services UI components, lib, theme tokens
+- `contracts/[contractId]` — contract detail
+- `orders/[id]` — service-order detail (used by both participants)
+- `admin/` — `services`, `disputes`, `contract-disputes`, `users`,
+  `finances`, `orders`, `accept-invite`
+- `conversations/`, `inbox/`, `messages/` — chat surfaces
+- `profile/`, `about/`
 
-Next.js App Router (`src/app/`). Key areas:
+Shared UI: `src/app/components/` (organised by domain — `auth/`, `Chat/`,
+`Client/`, `Freelancer/`, `Header/`, `Footer/`, `home/`, `jobs/`,
+`messages/`, `navbar/`, `profile/`, `reviews/`, `Skeletons/`, etc.).
+Layouts in `src/app/layout/` (`ClientLayout.jsx`, `FreelancerLayout.jsx`,
+`ClientProfileLayout.jsx`, `FreelanceProfileLayout.jsx`). Routes table
+centralised in `src/app/routes.js`.
 
-- `src/app/page.jsx` — landing
-- `src/app/auth/` — signup, signin
-- `src/app/client/` — client dashboard
-- `src/app/freelancer/` — freelancer dashboard
-- `src/app/components/` — shared UI, organised by domain (`auth/`, `Chat/`,
-  `Client/`, `Freelancer/`, `jobs/`, `messages/`, `profile/`, etc.)
-- `src/app/conversations/`, `src/app/inbox/`, `src/app/messages/` —
-  messaging UI surfaces, talk to `src/app/api/conversations|messages` and
-  the ws-server
-- `src/app/routes.js` — centralized route paths
-- `src/svgIcons/` — inline SVG components
-- `src/hooks/` — `useClickOutside.js`, `useEscapeKey.js`
-- `src/app/hooks/useMessages.ts` — messaging hook, mirrored at
-  `src/hooks/useMessages.ts` (duplication resolved in Phase 3)
+Stores in `src/app/store/` (Zustand + `persist` middleware):
+`userStore.js`, `jobStore.js`, `freelancerStore/`, `freelancerApiStore.js`,
+`LoadingStore.js`, `toastStore.js`.
 
-### Two `lib/` directories — do not confuse
+Hooks: `src/app/hooks/useMessages.ts` and `src/hooks/`
+(`useClickOutside.js`, `useEscapeKey.js`, `useMessages.ts`).
 
-- `src/app/lib/` (JavaScript) — Axios client code for the legacy Express
-  backend. `api.js` plus per-domain modules (`auth/`, `freelancer/`,
-  `jobs/`). Deleted domain by domain as Express routes are ported.
-- `src/lib/` (TypeScript) — shared server-side logic for Next.js API
-  routes. `assertions.ts`, `auth.ts`, `contracts.ts`, `db.ts`. New
-  server-side code goes here.
+### Two `lib/` directories — keep straight
 
-### State management
+- `src/app/lib/` (JavaScript) — Axios clients for the legacy Express
+  backend. `api.js` plus `auth/`, `freelancer/`, `jobs/`, `search/`.
+  Replaced piecewise as routes move into the Next app.
+- `src/lib/` (TypeScript) — server-side helpers used by Next.js route
+  handlers. New backend code goes here.
 
-`src/app/store/` — Zustand with `persist` middleware (localStorage).
-Stores: `userStore.js`, `jobStore.js`, `freelancerStore/`,
-`freelancerApiStore.js`, `LoadingStore.js`, `toastStore.js`.
+`src/lib/` modules:
+
+| File / dir | Purpose |
+|---|---|
+| `db/index.ts` | postgres.js clients: `sql` (pooled) and `listenSql` (single, for LISTEN/NOTIFY) |
+| `db/drizzle.ts` | Drizzle `db` instance, merges all schema modules |
+| `db/schema.ts` | Legacy mirror — Sequelize-owned tables in Drizzle form |
+| `db/schema/{stripe,services,reviews,contracts,adminInvites}.ts` | Drizzle-owned tables, one module per feature |
+| `db/relations.ts` | Drizzle relations |
+| `db/drizzle-migrations/*.sql` + `meta/` | Migration history (0000–0010) |
+| `auth.ts` | `auth()` reads `token` cookie, verifies with `JWT_SECRET`, returns `{ user: { id, name, email } } \| null`. Blocks suspended users. Tolerates the legacy triple-shape JWT payload. |
+| `assertions.ts` | Per-resource access checks: `assertConversationAccess`, `assertJobOwnership`, `assertProposalClientAccess`, `assertServiceAccess`, `assertServiceOrderAccess`, `assertServiceOrderParticipant`, `assertAdminAccess` |
+| `stripe.ts` | Configured `Stripe` client |
+| `connect.ts` | Stripe Connect onboarding helpers (`getOrCreateConnectAccount`, `syncConnectAccount`, `assertConnectReady`) |
+| `orders.ts` | Service-order state machine: `transitionServiceOrder`, `VALID_TRANSITIONS`, `InvalidTransitionError` |
+| `transfers.ts` | `createTransferForOrder`, `createSplitTransferForOrder`, `computeOrderPayout`, `TransferError` |
+| `refunds.ts` | `refundFullOrder`, `refundPartialOrder`, `RefundError` |
+| `proposals.ts` | Proposal helpers |
+| `contracts.ts` | Contract helpers (creation, sign, decline, revisions) |
+| `ws.ts` | Internal-broadcast HTTP helper (POSTs to ws-server `/internal/broadcast`) |
+| `webhooks/stripe.ts` | Per-event handlers dispatched by `/api/webhooks/stripe` |
+| `email/{client,notifications,presence,recipients,templates}.ts` | Email notifications (with presence-aware skip) |
+| `config/fees.ts` | `PLATFORM_FEE_PCT = 10.00` — single source of truth |
 
 ### Auth
 
-JWT decoded client-side via `jwt-decode`, stored in localStorage and
-cookies. Root middleware redirects unauthenticated users away from
-`/client` and `/freelancer`. No refresh tokens. Same `JWT_SECRET` used by
-ws-server to verify connection tokens issued from `src/app/api/ws-token`.
+JWT issued by the Express backend (login/signup), stored in the `token`
+cookie (and localStorage on the client). The Next.js `auth()` helper and
+the ws-server both verify with the same `JWT_SECRET`. No refresh tokens;
+7-day expiry. The JWT payload has a legacy triple-fallback shape
+(`userId` as object, `userId` as number, top-level `id`) — `auth.ts`
+already handles all three; keep that behaviour when touching it.
 
-The JWT payload has a legacy triple-fallback shape (userId-as-object,
-userId-as-number, top-level id). Collapse to a single canonical shape in
-Phase 3, not now.
+Suspension: `users.suspended_at IS NOT NULL` blocks `auth()` from
+returning a session.
 
-### UI libraries
+### Next.js API surface (`src/app/api/`)
 
-MUI v7, Tailwind, Flowbite React, React Hook Form, React Toastify,
-SweetAlert2, react-datepicker, flatpickr.
+| Path | Notes |
+|---|---|
+| `auth/*` | (Express still owns login/signup; no /api/auth here yet) |
+| `users/me/avatar`, `users/[id]/reviews` | User-facing reads |
+| `jobs/[jobId]/proposals` | Job-scoped proposals |
+| `proposals/`, `proposals/mine`, `proposals/[id]/{accept,decline}` | Proposal CRUD |
+| `conversations/direct`, `conversations/[id]/{messages,read}`, `conversations/[id]/messages/[messageId]` | Messaging |
+| `inbox/` | Inbox listing |
+| `contracts/`, `contracts/my`, `contracts/[contractId]/{sign,decline,cancel,submit,deliver,accept,dispute,request-revision,checkout,revisions}` | Contracts + contract-order flow |
+| `services/`, `services/mine`, `services/[id]/{addons,submit-for-review}` | Services marketplace |
+| `service-orders/checkout`, `service-orders/{incoming,outgoing}`, `service-orders/[id]/{accept,deliver,cancel,dispute,request-revision,buy-revisions,attachments,reviews}` | Service-order lifecycle |
+| `connect/{account,onboarding-link,dashboard-link,status}` | Stripe Connect for freelancers |
+| `webhooks/stripe` | Stripe webhook (signature + dedupe via `stripe_events`) |
+| `cron/auto-accept` | Auto-accept past-deadline orders. Requires `x-cron-secret: $CRON_SECRET` |
+| `upload/presign` | R2 presigned upload URLs |
+| `download/` | Authenticated R2 downloads |
+| `finances/{summary,activity,stripe}` | Earnings/transactions for the freelancer dashboard |
+| `ws-token/` | Issues short-lived WS tokens signed with `JWT_SECRET` |
+| `set-token/` | Cookie writer (used by backend login redirect) |
+| `admin/{users,services,service-orders,contract-orders,disputes,contract-disputes,finances,overview,invites,orders}` | Admin panel API, gated by `assertAdminAccess` |
 
-### Backend code currently in the frontend (migration scope)
+State-machine note: every transition of `service_orders.state` must go
+through `transitionServiceOrder()` in `lib/orders.ts` (atomic
+compare-and-swap on `state`). Never write raw `UPDATE service_orders
+SET state = ...`. See `SERVICES_HANDOFF.md` for the full state diagram.
 
-All of these are committed on `origin/main` as of Phase 0 cleanup:
+Error shape on the new (Drizzle-era) routes:
+`{ error: "...", code?: "..." }` with the appropriate HTTP status.
+`code` is only present where the frontend needs to programmatically
+detect a case (e.g. `code: 'revisions_exhausted'` → 402).
 
-- `src/app/api/contracts/` — contract CRUD, sign, decline, cancel,
-  revisions, approve-revision
-- `src/app/api/conversations/[id]/` — messages, read, stream (SSE)
-- `src/app/api/messages/` — message CRUD
-- `src/app/api/proposals/` — proposals
-- `src/app/api/jobs/[jobId]/proposals/` — job-scoped proposals
-- `src/app/api/inbox/` — inbox listing
-- `src/app/api/upload/presign/` — R2 presigned upload URLs
-- `src/app/api/ws-token/` — short-lived tokens for ws-server
-- `migrations/001_messaging_v2.sql`, `migrations/002_contracts.sql` — raw
-  SQL, replaced by Drizzle in Phase 2+
-- `scripts/migrate.ts` — runner for the raw SQL migrations
+Legacy backend response shape (preserve when porting Express routes):
+`{ success: true, message: "...", data: { ... } }`.
 
-Known debts to fix in Phase 3 (record, do not fix early):
+## Backend (`backend/`) — Express + Sequelize
 
-- `src/app/api/contracts/route.ts` has 6 unwrapped DB writes — wrap in
-  `db.transaction()` per the Phase 1 transaction rule
-- `broadcastContract` errors in the same file are silently swallowed —
-  add structured error logging per the broadcast rule
-
-## Legacy Backend (`backend/`) — FROZEN
-
-Reference only. No new code. See freeze rules above.
+Still serves auth, lookups, jobs, proposals, orders, freelancer profile
+CRUD, and skills. Active, not frozen.
 
 ### Commands
 
 ```bash
-cd backend
-npm run dev          # nodemon, port 4000
-npm run db:migrate   # Sequelize migrations
-npm run db:seed      # seed lookup data
-npm run db:reset     # undo, migrate, seed
-npm run setup:dev    # install + migrate + seed + dev
+npm -w backend run dev          # nodemon, port 4000
+npm -w backend run db:migrate   # Sequelize migrations
+npm -w backend run db:seed      # seed lookup data
+npm -w backend run db:reset     # undo, migrate, seed
+npm -w backend run setup:dev    # install + migrate + seed + dev
 ```
 
-Copy `.env.example` to `.env` before first run. No real test suite.
+### Environment variables (`backend/.env`)
 
-### Environment variables
-
-Keys (values not listed): `DATABASE_URL`, `PORT`, `JWT_SECRET`,
-`JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `BREVO_API_KEY`,
-`RUN_SEEDS`.
+`DATABASE_URL`, `PORT` (4000), `JWT_SECRET`, `JWT_EXPIRES_IN`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `BREVO_API_KEY`, `RUN_SEEDS`.
 
 ### Architecture
 
-Entry: `server.js`. Express + helmet + cors + morgan + json. Runs
-auto-migrations (dev/test), upserts admin user, inits project options on
-startup.
+Entry: `server.js`. Express 5 + helmet + cors + morgan + json. In
+`NODE_ENV=development` and `test`, auto-runs `sequelize-cli db:migrate`
+on startup. Always upserts the admin user via `utils/createAdmin.js`
+and seeds project options via `utils/initializeProjectOptions.js`.
 
-Request flow: `routes/` → `controllers/` → `services/` → `models/` (Sequelize).
+CORS allowlist: `localhost:3000`, `localhost:5173`, `venejob.com`,
+`www.venejob.com`, `app.venejob.com`, plus `*.vercel.app` previews.
 
-| Prefix | Purpose |
-|---|---|
-| `/api/auth/` | signup, login, email verification (6-digit, 10 min), password reset |
-| `/api/jobs/` | job CRUD, status |
-| `/api/freelancer/` | freelancer profile |
-| `/api/proposals/` | submit, list, accept, reject |
-| `/api/orders/` | direct orders |
-| `/api/skills/` | skills |
-| `/api/lookup/` | reference data |
-| `/uploads/` | static file serving (local disk, will not survive Vercel) |
+Request flow: `routes/` → `controllers/` → `services/` → `models/`
+(Sequelize). Validators in `validators/` using `express-validator`.
+Middleware in `middleware/` (`auth.js`, `requireRole.js`,
+`adminOrFreelancer.js`, `sanitizeUser.js`, `validateFreelancerProfile.js`).
+Common response strings in `commonMessages/`.
 
-**Response shape** (preserve during porting):
+Mounted route prefixes:
 
-```json
-{ "success": true, "message": "...", "data": { ... } }
-```
+| Prefix | Source | Purpose |
+|---|---|---|
+| `/api/auth/` | `routes/authRoutes.js` | signup, login, email verification (6-digit, 10 min), password reset |
+| `/api/jobs/` | `routes/job.routes.js` | job CRUD, status |
+| `/api/lookup/` | `routes/lookup.routes.js` | reference data |
+| `/api/lookup/project-options` | `routes/projectOptions.routes.js` | project sizes/durations/experience levels |
+| `/api/lookup/budget-types` | `routes/budget_types.routes.js` | budget types |
+| `/api/freelancer/` | `routes/freelancer.routes.js` | freelancer profile + nested education/experience/etc. |
+| `/api/skills/` | `routes/skill.routes.js` | skills |
+| `/api/proposals/` | `routes/proposal.routes.js` | submit, list, accept, reject |
+| `/api/orders/` | `routes/order.routes.js` | direct orders |
+| `/uploads/` | static | local-disk uploads (legacy, R2 is the new path) |
 
-**Data model**:
-User → Role (admin/client/freelancer)
-User → FreelancerProfile → [Education, Experience, Language, Skill, Portfolio]
-User → Job → Proposal → Order
+Sequelize models in `models/`: `user`, `role`, `job`, `proposal`,
+`order`, `freelancerProfile`, `freelancerEducation`,
+`freelancerExperience`, `freelancerLanguage`, `freelancerPortfolio`,
+`freelancerSkill`, `category`, `skill`, `budget_types`, `projectSize`,
+`duration`, `experienceLevel`.
 
-**Middleware**: `auth.js` (authenticateToken, optionalAuth),
-`requireRole.js`, `adminOrFreelancer.js`, `sanitizeUser.js`,
-`validateFreelancerProfile.js`.
+Auth rules: passwords require 8+ chars with upper, lower, digit, special
+char. JWT contains `userId` or `id`, 7-day expiry. The legacy triple
+payload shape is handled by `frontend/src/lib/auth.ts` — don't change it
+on either side without updating both.
 
-**Validators**: `express-validator` per domain. Port to Zod in the unified
-app.
+Utilities: `emailService.js` (Brevo with console fallback),
+`utils/uploads/` (Multer, local disk), `rateLimiter.js`,
+`logger.js` (Winston), `helpers.js` (hashPassword, comparePassword,
+generateToken), `createAdmin.js`, `constants/lookupData.js`.
 
-**Services**: business logic between controllers and models. Preserve
-business rules verbatim when porting — they encode product decisions.
+Sequelize is the **source of truth** for the tables listed under
+"Sequelize-owned" in `MIGRATION.md`. Drizzle mirrors them descriptively
+in `frontend/src/lib/db/schema.ts` so the Next.js app can read them, but
+schema changes to those tables go via Sequelize migrations.
 
-**Response messages**: `backend/commonMessages/`. Use constants, not inline
-strings. Moved into unified app during porting.
+## WebSocket server (`ws-server/`)
 
-**Utilities**: `emailService.js` (Brevo, console fallback),
-`utils/uploads/` (Multer — will not survive Vercel, replaced by R2 in
-Phase 1), `rateLimiter.js`, `logger.js` (Winston), `helpers.js`
-(hashPassword, comparePassword, generateToken), `createAdmin.js`,
-`constants/lookupData.js`.
+Standalone TypeScript service. Two HTTP servers:
 
-**Auth**: passwords require 8+ chars with uppercase, lowercase, number,
-special char. JWT contains `userId` or `id`, 7 day expiry.
+- **WS, port `WS_PORT` (default 4002)** — public, accepts
+  `ws://…?token=<jwt>&conversationId=<uuid>`. Token is verified with
+  `WS_SECRET`. Decoded payload must include matching `conversationId`.
+- **HTTP, port `WS_INTERNAL_PORT` (default 4001)** — internal only,
+  gated by `x-internal-secret: $WS_INTERNAL_SECRET`. Exposes:
+  - `POST /internal/broadcast` — `{ conversationId, payload }` →
+    fan out to all connections in that room.
+  - `GET  /internal/presence?userId=N` → `{ online: boolean }`.
 
-**Database**: Postgres (Neon) via Sequelize. Dev/test auto-runs pending
-migrations. `RUN_SEEDS=true` triggers seeders. SSL enabled in all envs.
+In-process state: `rooms: Map<conversationId, Set<Connection>>` and
+`userPresence: Map<userId, refCount>` (a user is "online" iff count > 0,
+so multiple tabs are handled correctly).
 
-**CORS**: allows `localhost:3000`, `localhost:5173`, `venejob.com`, and
-`*.vercel.app` previews. Credentials enabled.
+Inbound client message types: `ping`, `typing_start`, `typing_stop`,
+`mark_read` (calls `upsertReads`), `reaction_add` / `reaction_remove`
+(call `addReaction` / `removeReaction`, then broadcast updated reactions).
 
-## WebSocket Server (`ws-server/`)
+Files: `index.ts`, `db/queries.ts`. `package.json` scripts use `tsx`
+with `--env-file=.env`.
 
-Standalone TypeScript WS server. WS on port 4002, internal broadcast HTTP
-on port 4001. Own `package.json`, `tsconfig.json`, `db/queries.ts`.
-Connects to the same Neon Postgres as the main app. Part of the monorepo
-workspace — no separate git history.
+### Environment variables (`ws-server/.env`)
 
-### Environment variables
-
-Keys from `ws-server/.env.example`: `DATABASE_URL`, `WS_SECRET` (must
-match frontend's), `WS_INTERNAL_SECRET` (shared with frontend for internal
-broadcast HTTP calls), `WS_PORT` (4002), `WS_INTERNAL_PORT` (4001). The
-frontend issues short-lived WS tokens signed with `JWT_SECRET`; ws-server
-verifies them using the same secret, so `JWT_SECRET` must also match
-frontend.
+`DATABASE_URL`, `WS_SECRET` (matches frontend's `JWT_SECRET`/`WS_SECRET`),
+`WS_INTERNAL_SECRET` (matches frontend), `WS_PORT` (4002),
+`WS_INTERNAL_PORT` (4001).
 
 ### Auth flow
 
-1. Authenticated user hits `frontend/src/app/api/ws-token` for a short-lived
-   token
-2. Client opens WS connection with the token
-3. ws-server verifies using shared `JWT_SECRET`
+1. Authenticated Next.js client POSTs `/api/ws-token` to get a
+   short-lived token signed with `WS_SECRET` carrying `{ userId,
+   conversationId }`.
+2. Client opens `ws://localhost:4002/?token=…&conversationId=…`.
+3. ws-server verifies, enforces conversationId match, joins the room.
 
-### Internal broadcast
+### Internal broadcast pattern (called from Next.js routes)
 
-Next.js routes fan out real-time events by POSTing to ws-server's
-`/internal/broadcast` endpoint, authenticated with `WS_INTERNAL_SECRET`.
-Broadcast happens after DB commits, never inside a transaction. Broadcast
-failures are best-effort but must be logged, never silently swallowed.
+`POST {WS_INTERNAL_URL}/internal/broadcast` with header
+`x-internal-secret: $WS_INTERNAL_SECRET` and body
+`{ conversationId, payload }`. Always after the DB commit, never inside
+a transaction. Broadcast failures are best-effort but must be logged
+(structured), never silently swallowed.
 
-### Migration role
+Presence lookup (used by email notifications to skip users who are
+online): `GET {WS_INTERNAL_URL}/internal/presence?userId=N`.
 
-Stays as a separate service post-migration. WebSockets do not belong in
-Next.js route handlers on Vercel. ws-server lives in the monorepo as a
-workspace. Schema sharing between frontend and ws-server is a Phase 4
-decision (internal workspace package vs synced file).
+## Database layer
+
+Two ORMs, one Postgres database (Neon, SSL required). Boundary rules
+are in `MIGRATION.md` — read that before changing schema.
+
+- **Sequelize-owned (frozen for Drizzle):** `SequelizeMeta`, `roles`,
+  `users`, `budget_types`, `project_sizes`, `durations`,
+  `experience_levels`, `freelancer_profiles`, `freelancer_experiences`,
+  `freelancer_educations`, `freelancer_languages`,
+  `freelancer_portfolios`, `freelancer_skills`, `categories`, `skills`,
+  `jobs`, `proposals`, `orders`. ALTERs go via
+  `backend/migrations/*.js`. Drizzle mirrors them descriptively in
+  `frontend/src/lib/db/schema.ts`.
+
+  Two columns on `users` (`suspended_at`, `suspension_reason`) were
+  added by Drizzle migration `0010_furry_vapor.sql` and live alongside
+  the Sequelize-owned columns. Treat `users` as Sequelize-owned for
+  schema purposes; Drizzle's mirror is kept in sync.
+
+- **Drizzle-owned:** messaging (`conversations`, `messages`,
+  `message_attachments`, `message_reactions`, `message_reads`),
+  contracts (`contracts`, `contract_revisions`, `contract_signatures`),
+  contract orders (`contract_orders`, `contract_order_disputes`),
+  services marketplace (`services`, `service_addons`, `service_orders`,
+  `service_order_addons`, `service_order_deliveries`,
+  `service_order_revisions`, `service_order_disputes`), Stripe
+  (`stripe_connect_accounts`, `stripe_events`), `reviews`,
+  `admin_invites`.
+
+Schema layout in `frontend/src/lib/db/`:
+
+- `schema.ts` — Sequelize-mirror **plus** the older messaging/contracts
+  tables. Do not split.
+- `schema/stripe.ts` — `stripe_connect_accounts`, `stripe_events`.
+- `schema/services.ts` — 7 services-marketplace tables.
+- `schema/contracts.ts` — `contract_orders`, `contract_order_disputes`.
+- `schema/reviews.ts` — `reviews` (polymorphic over contract OR
+  service_order via an XOR check).
+- `schema/adminInvites.ts` — `admin_invites`.
+
+Foreign-key type rule: `users.id` is `serial` (integer). Any new
+Drizzle-owned table that references it must use `integer` for the FK
+column. New PKs are `uuid DEFAULT gen_random_uuid()` except where
+domain dictates otherwise (`stripe_connect_accounts.user_id` PK because
+it's 1:1; `stripe_events.id` is the Stripe event ID string).
+
+Money columns on Drizzle-owned tables are **integers in the smallest
+currency unit (pence/cents)**. Never use floats for money. (The legacy
+Sequelize tables use `double precision` — historical, do not propagate.)
+
+Service order `state`, `services.status`, `service_orders.resolution`,
+and `contract_orders.state` are plain `text` by design (no `pgEnum`, no
+`CHECK`) so the app state machine controls valid values without DDL.
+The reviews table is the opposite — `reviewer_role`, `status`, and
+`rating` are `CHECK`-constrained because their value sets are closed
+schema invariants.
+
+### Drizzle commands (run from `frontend/`)
+
+```bash
+npm -w frontend run db:generate   # diff schema vs last snapshot
+npm -w frontend run db:migrate    # apply pending; tracks in drizzle.__drizzle_migrations
+npm -w frontend run db:studio     # browse via drizzle-kit studio
+```
+
+`db:generate` needs a TTY (drizzle-kit's rename resolver prompts). In a
+non-TTY environment, hand-write the SQL and add the journal entry — see
+the "Reconciliation drift" section in `MIGRATION.md` for the
+idempotent-guard wrapping pattern that lets generated SQL coexist with
+Sequelize-applied state.
+
+Migration history lives in
+`frontend/src/lib/db/drizzle-migrations/` (`0000_colorful_marauders.sql`
+through `0010_furry_vapor.sql`) with snapshots in `meta/`.
+
+### Frontend scripts (`frontend/scripts/`)
+
+- `db-migrate.ts` — runs Drizzle migrations against `DATABASE_URL`.
+- `apply-sql.ts` — applies a one-off raw SQL file.
+- `migrate.ts` — older raw-SQL runner for `frontend/migrations/*.sql`
+  (`001_messaging_v2.sql`, `002_contracts.sql`, `003_drop_read_at.sql`,
+  `004_hire_count_and_filled_status.sql`). These have already been
+  applied to prod; ownership has since moved to Drizzle.
+- `create-admin.ts`, `migrate-avatars-to-r2.ts` — one-off utilities.
+
+## Stripe + Services marketplace
+
+Read `SERVICES_HANDOFF.md` before changing anything Stripe-related.
+Headline rules:
+
+- **Separate charges + transfers** Connect model (NOT destination
+  charges). Buyer pays the platform; on accept, we `transfers.create`
+  the freelancer's cut.
+- Idempotency keys on `stripe.transfers.create` and refunds are
+  load-bearing for retry safety. The transfer key is salted with
+  `accepted_at` ms — do not remove the salt.
+- The discriminator `metadata.kind` on Stripe sessions
+  (`'service_base'` vs `'service_addon'`) drives webhook dispatch —
+  don't change it.
+- `PLATFORM_FEE_PCT` lives in `frontend/src/lib/config/fees.ts` and is
+  snapshotted onto each order at creation.
+- `service_orders.state` transitions: only through
+  `transitionServiceOrder()` in `lib/orders.ts`. A stuck `accepted`
+  order with a failed transfer requires a manual SQL reset to
+  `delivered` — there is no retry endpoint yet.
+- `stripe listen --forward-to http://localhost:5173/api/webhooks/stripe`
+  must be running during local testing, or `service_orders` rows never
+  get created on payment.
+
+The contract-orders flow (signed contract → checkout → deliver → accept
+→ transfer) mirrors the services-marketplace flow at the lib/route
+level but uses the `contract_orders` and `contract_order_disputes`
+tables instead of the services tables.
+
+## Conventions
+
+- New server code goes in `frontend/src/lib/` (TypeScript) and
+  `frontend/src/app/api/`. Use Drizzle (`db` from `db/drizzle.ts`) for
+  Drizzle-owned tables and the raw `sql` client (`db/index.ts`) for
+  cross-cutting reads against Sequelize-owned tables when a Drizzle
+  query would be awkward.
+- Per-resource access helpers in `src/lib/assertions.ts` — extend
+  these rather than inlining ownership SQL in routes.
+- Wrap multi-write routes in `db.transaction(...)`; broadcast only
+  after commit.
+- Use structured logs (`console.error('[contract broadcast]', err)`)
+  instead of silent catches.
+- Email notifications: import from `src/lib/email/notifications.ts`,
+  which already skips presence-online users via the ws-server
+  `/internal/presence` endpoint.
+- Money in pence (integer) on Drizzle-owned tables. Use the integer
+  pence values for all Stripe API calls (Stripe also uses smallest
+  unit). Format only at render time.
+- Centralise route paths in `frontend/src/app/routes.js` when wiring
+  new pages into existing nav.

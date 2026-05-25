@@ -9,6 +9,18 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import Link from "next/link";
 import Image from "next/image";
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+const FALLBACK_AVATAR = "/home/Group_Home.png";
+
+// Profile pictures come from two sources:
+// - R2 uploads (absolute https://… URL)
+// - legacy backend local uploads (/uploads/… relative to NEXT_PUBLIC_BASE_URL)
+function avatarSrc(pic) {
+  if (!pic) return FALLBACK_AVATAR;
+  if (pic.startsWith("http")) return pic;
+  return `${BASE_URL}${pic.replace(/^\//, "")}`;
+}
+
 export default function ProfileDropdown() {
   const router = useRouter();
   const [showDropdown, setshowDropdown] = useState(false);
@@ -71,14 +83,12 @@ export default function ProfileDropdown() {
             <span className="absolute -inset-1.5"></span>
             <span className="sr-only">Open user menu</span>
             <Image
-              src={
-                "/home/Group_Home.png"
-                // user?.profile_picture ||
-              }
-              alt=""
-              height={"100"}
-              width={"100"}
-              className="size-10 rounded-full bg-gray-800 ring-1 ring-white outline outline-[0.5px] outline-msg-border"
+              src={avatarSrc(user?.profile_picture)}
+              alt={user?.name ?? "Profile"}
+              height={100}
+              width={100}
+              unoptimized
+              className="size-10 rounded-full object-cover bg-gray-800 ring-1 ring-white outline outline-[0.5px] outline-msg-border"
             />
           </button>
 

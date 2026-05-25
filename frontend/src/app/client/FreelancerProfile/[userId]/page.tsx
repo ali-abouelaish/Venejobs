@@ -3,8 +3,6 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Avatar,
-  Badge,
   Breadcrumbs,
   Card,
   ErrorState,
@@ -17,12 +15,11 @@ import {
   RatingSummary,
   UserReviewsSection,
 } from '../../../components/reviews/UserReviewsSection';
-// Legacy axios helper — backend is frozen but functional. Same shape used
-// by the old JSX page: returns { profile } where profile has nested User,
-// educations, experiences, portfolios, languages, skills.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — legacy JS module without types
-import { getPublicFreelancerProfile } from '@/app/lib/freelancer';
+
+// Reads from the Next.js API route at /api/freelancer/[userId]/profile,
+// which mirrors the legacy Express response shape (returns { profile }
+// with nested User, educations, experiences, portfolios, languages,
+// skills) so this page stays shape-compatible with both backends.
 
 interface FreelancerUser {
   id: number;
@@ -64,6 +61,7 @@ interface LanguageItem {
   language?: string;
   name?: string;
   level?: string | null;
+  proficiency?: string | null;
 }
 
 interface SkillItem {
@@ -93,6 +91,18 @@ function avatarSrc(pic: string | null | undefined): string | undefined {
   return `${BASE_URL}${pic.replace(/^\//, '')}`;
 }
 
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function monthLabel(month: string | number | null | undefined): string {
+  if (month == null || month === '') return '';
+  const n = Number(month);
+  if (!Number.isInteger(n) || n < 1 || n > 12) return String(month);
+  return MONTH_NAMES[n - 1];
+}
+
 function eduPeriod(edu: EducationItem): string {
   const start = edu.start_date ? new Date(edu.start_date).getFullYear() : '';
   const end = edu.end_date ? new Date(edu.end_date).getFullYear() : 'Present';
@@ -100,15 +110,17 @@ function eduPeriod(edu: EducationItem): string {
 }
 
 function expPeriod(exp: ExperienceItem): string {
-  const start = exp.start_month
-    ? `${exp.start_month} ${exp.start_year ?? ''}`
-    : `${exp.start_year ?? ''}`;
-  const end = exp.is_current
-    ? 'Present'
-    : exp.end_month
-      ? `${exp.end_month} ${exp.end_year ?? ''}`
-      : `${exp.end_year ?? ''}`;
-  return `${start.trim()} – ${end.trim()}`.trim();
+  const startM = monthLabel(exp.start_month);
+  const start = startM
+    ? `${startM} ${exp.start_year ?? ''}`.trim()
+    : `${exp.start_year ?? ''}`.trim();
+  if (exp.is_current) return `${start} – Present`;
+  const endM = monthLabel(exp.end_month);
+  const end = endM
+    ? `${endM} ${exp.end_year ?? ''}`.trim()
+    : `${exp.end_year ?? ''}`.trim();
+  if (!end) return start;
+  return `${start} – ${end}`;
 }
 
 export default function FreelancerProfilePage({
@@ -128,10 +140,17 @@ export default function FreelancerProfilePage({
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getPublicFreelancerProfile(userId)
-      .then((res: { profile?: FreelancerProfile }) => {
+    fetch(`/api/freelancer/${encodeURIComponent(userId)}/profile`, {
+      cache: 'no-store',
+    })
+      .then(async (res) => {
         if (cancelled) return;
-        setProfile(res?.profile ?? null);
+        if (!res.ok) {
+          setError('Freelancer profile not found.');
+          return;
+        }
+        const data = (await res.json()) as { profile?: FreelancerProfile };
+        setProfile(data?.profile ?? null);
       })
       .catch(() => {
         if (cancelled) return;
@@ -148,19 +167,16 @@ export default function FreelancerProfilePage({
   if (loading) {
     return (
       <ServicesShell mode="public">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="flex flex-col gap-5">
+          <div className="relative h-44 rounded-2xl bg-gradient-to-br from-indigo-100 via-violet-100 to-rose-100" />
           <Card padding={24}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-              <Skeleton width={96} height={96} radius={48} />
-              <div style={{ flex: 1 }}>
+            <div className="flex gap-5 items-center">
+              <Skeleton width={112} height={112} radius={56} />
+              <div className="flex-1">
                 <Skeleton width="40%" height={22} style={{ marginBottom: 10 }} />
                 <Skeleton width="60%" height={14} />
               </div>
             </div>
-          </Card>
-          <Card padding={24}>
-            <Skeleton width="30%" height={16} style={{ marginBottom: 10 }} />
-            <Skeleton width="80%" height={14} />
           </Card>
         </div>
       </ServicesShell>
@@ -191,9 +207,11 @@ export default function FreelancerProfilePage({
     .map((s) => s.skill_name ?? s.name)
     .filter((x): x is string => Boolean(x));
 
+  const initial = (name?.[0] ?? 'F').toUpperCase();
+
   return (
     <ServicesShell mode="public">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="flex flex-col gap-6">
         <Breadcrumbs
           items={[
             { label: 'Browse freelancers', to: '/client/FreelancerProfile' },
@@ -202,434 +220,346 @@ export default function FreelancerProfilePage({
           onNavigate={(to) => router.push(to)}
         />
 
-        <Card padding={28}>
+        {/* ===== HERO ===== */}
+        <section className="relative rounded-2xl overflow-hidden border border-[var(--border-2)]">
+          {/* Gradient banner */}
           <div
+            className="h-40 sm:h-48 w-full"
             style={{
-              display: 'flex',
-              gap: 24,
-              alignItems: 'flex-start',
-              flexWrap: 'wrap',
+              background:
+                'linear-gradient(135deg, #6366f1 0%, #8b5cf6 45%, #ec4899 100%)',
             }}
-          >
-            <Avatar name={name} src={avatar} size={104} tone="freelancer" />
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <h1
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: 'var(--fg-1)',
-                  margin: 0,
-                  lineHeight: 1.2,
-                }}
-              >
-                {name}
-              </h1>
-              {headline && (
-                <p
-                  style={{
-                    fontSize: 16,
-                    color: 'var(--fg-3)',
-                    margin: '6px 0 0',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {headline}
-                </p>
-              )}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  marginTop: 12,
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                }}
-              >
-                {location && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 13,
-                      color: 'var(--fg-4)',
-                    }}
-                  >
-                    <Icon name="mapPin" size={14} />
-                    {location}
+            aria-hidden
+          />
+          <div className="px-5 sm:px-8 pb-7 -mt-14 sm:-mt-16">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:gap-6 gap-4">
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-white shadow-md overflow-hidden bg-white flex items-center justify-center">
+                {avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatar}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl sm:text-4xl font-bold text-indigo-500">
+                    {initial}
                   </span>
                 )}
-                <RatingHeader userId={userIdNum} />
               </div>
-            </div>
-            {profile.hourly_rate != null && (
-              <div
-                style={{
-                  textAlign: 'right',
-                  padding: '12px 16px',
-                  background: 'var(--bg-2)',
-                  borderRadius: 10,
-                  border: '1px solid var(--border-2)',
-                  minWidth: 140,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    letterSpacing: '0.04em',
-                    color: 'var(--fg-4)',
-                  }}
-                >
-                  Hourly rate
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    marginTop: 4,
-                  }}
-                >
-                  {formatPrice(Math.round(profile.hourly_rate * 100), {
-                    currency: 'gbp',
-                  })}
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: 'var(--fg-4)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {' '}
-                    /hr
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[var(--fg-1)] leading-tight">
+                  {name}
+                </h1>
+                {headline && (
+                  <p className="text-base sm:text-lg text-[var(--fg-3)] mt-1">
+                    {headline}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-4 mt-3 text-sm text-[var(--fg-4)]">
+                  {location && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Icon name="mapPin" size={14} />
+                      {location}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5">
+                    <RatingHeader userId={userIdNum} />
                   </span>
                 </div>
               </div>
-            )}
-          </div>
-
-          {profile.overview && (
-            <div
-              style={{
-                marginTop: 24,
-                paddingTop: 20,
-                borderTop: '1px solid var(--border-2)',
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: 'var(--fg-1)',
-                  margin: 0,
-                  marginBottom: 8,
-                }}
-              >
-                About
-              </h3>
-              <p
-                style={{
-                  fontSize: 15,
-                  color: 'var(--fg-3)',
-                  margin: 0,
-                  lineHeight: 1.7,
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {profile.overview}
-              </p>
+              <div className="hidden sm:block">
+                <HireBox profile={profile} userIdNum={userIdNum} router={router} compact />
+              </div>
             </div>
-          )}
-        </Card>
+            {/* Mobile hire CTA */}
+            <div className="sm:hidden mt-4">
+              <HireBox profile={profile} userIdNum={userIdNum} router={router} />
+            </div>
+          </div>
+        </section>
 
-        <div className="vj-two-col">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ===== STATS STRIP ===== */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatTile
+            label="Hourly rate"
+            value={
+              profile.hourly_rate != null
+                ? formatPrice(Math.round(profile.hourly_rate * 100), {
+                    currency: 'gbp',
+                  })
+                : '—'
+            }
+            sub={profile.hourly_rate != null ? '/hr' : undefined}
+          />
+          <StatTile
+            label="Skills"
+            value={String(skills.length)}
+            sub={skills.length === 1 ? 'skill' : 'skills'}
+          />
+          <StatTile
+            label="Experience"
+            value={String(experiences.length)}
+            sub={experiences.length === 1 ? 'position' : 'positions'}
+          />
+          <StatTile
+            label="Languages"
+            value={String(languages.length)}
+            sub={languages.length === 1 ? 'language' : 'languages'}
+          />
+        </section>
+
+        {/* ===== TWO COLUMN ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+          {/* LEFT — narrative */}
+          <div className="flex flex-col gap-5">
+            {profile.overview && (
+              <SectionCard title="About">
+                <p className="text-[15px] text-[var(--fg-2)] leading-7 whitespace-pre-wrap">
+                  {profile.overview}
+                </p>
+              </SectionCard>
+            )}
+
             {portfolios.length > 0 && (
-              <Card padding={24}>
-                <h3
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    margin: 0,
-                    marginBottom: 16,
-                  }}
-                >
-                  Portfolio
-                </h3>
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16,
-                  }}
-                >
+              <SectionCard title="Portfolio">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {portfolios.map((p) => (
-                    <li key={p.id}>
-                      <h4
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: 'var(--fg-1)',
-                          margin: 0,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {p.title}
-                      </h4>
+                    <a
+                      key={p.id}
+                      href={p.project_url ?? '#'}
+                      target={p.project_url ? '_blank' : undefined}
+                      rel="noreferrer"
+                      className="group block rounded-xl border border-[var(--border-2)] p-4 hover:border-indigo-300 hover:shadow-sm transition"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="font-semibold text-[var(--fg-1)] group-hover:text-indigo-600 transition">
+                          {p.title}
+                        </h4>
+                        {p.project_url && (
+                          <Icon name="arrowUpRight" size={14} />
+                        )}
+                      </div>
                       {p.description && (
-                        <p
-                          style={{
-                            fontSize: 14,
-                            color: 'var(--fg-3)',
-                            margin: 0,
-                            lineHeight: 1.6,
-                          }}
-                        >
+                        <p className="text-sm text-[var(--fg-3)] leading-6 mt-2 line-clamp-3">
                           {p.description}
                         </p>
                       )}
-                      {p.project_url && (
-                        <a
-                          href={p.project_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 13,
-                            color: 'var(--brand)',
-                            textDecoration: 'none',
-                            marginTop: 4,
-                          }}
-                        >
-                          View project <Icon name="arrowUpRight" size={12} />
-                        </a>
-                      )}
-                    </li>
+                    </a>
                   ))}
-                </ul>
-              </Card>
+                </div>
+              </SectionCard>
             )}
 
             {experiences.length > 0 && (
-              <Card padding={24}>
-                <h3
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    margin: 0,
-                    marginBottom: 16,
-                  }}
-                >
-                  Experience
-                </h3>
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16,
-                  }}
-                >
+              <SectionCard title="Work experience">
+                <Timeline>
                   {experiences.map((e) => (
-                    <li
-                      key={e.id}
-                      style={{
-                        paddingLeft: 14,
-                        borderLeft: '3px solid var(--border-2)',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>
-                        {expPeriod(e)}
-                      </div>
-                      <h4
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: 'var(--fg-1)',
-                          margin: '4px 0 0',
-                        }}
-                      >
+                    <TimelineRow key={e.id} period={expPeriod(e)}>
+                      <h4 className="font-semibold text-[var(--fg-1)]">
                         {e.job_title}
-                        {e.company ? ` · ${e.company}` : ''}
+                        {e.company && (
+                          <span className="text-[var(--fg-3)] font-normal">
+                            {' '}· {e.company}
+                          </span>
+                        )}
                       </h4>
                       {e.description && (
-                        <p
-                          style={{
-                            fontSize: 14,
-                            color: 'var(--fg-3)',
-                            margin: '6px 0 0',
-                            lineHeight: 1.6,
-                          }}
-                        >
+                        <p className="text-sm text-[var(--fg-3)] leading-6 mt-1.5 whitespace-pre-wrap">
                           {e.description}
                         </p>
                       )}
-                    </li>
+                    </TimelineRow>
                   ))}
-                </ul>
-              </Card>
+                </Timeline>
+              </SectionCard>
             )}
 
             {educations.length > 0 && (
-              <Card padding={24}>
-                <h3
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    margin: 0,
-                    marginBottom: 16,
-                  }}
-                >
-                  Education
-                </h3>
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16,
-                  }}
-                >
+              <SectionCard title="Education">
+                <Timeline>
                   {educations.map((e) => (
-                    <li
-                      key={e.id}
-                      style={{
-                        paddingLeft: 14,
-                        borderLeft: '3px solid var(--border-2)',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>
-                        {eduPeriod(e)}
-                      </div>
-                      <h4
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: 'var(--fg-1)',
-                          margin: '4px 0 0',
-                        }}
-                      >
+                    <TimelineRow key={e.id} period={eduPeriod(e)}>
+                      <h4 className="font-semibold text-[var(--fg-1)]">
                         {e.institution_name}
-                        {e.degree ? ` — ${e.degree}` : ''}
-                        {e.field_of_study ? `, ${e.field_of_study}` : ''}
+                        {e.degree && (
+                          <span className="text-[var(--fg-3)] font-normal">
+                            {' '}— {e.degree}
+                          </span>
+                        )}
+                        {e.field_of_study && (
+                          <span className="text-[var(--fg-3)] font-normal">
+                            {', '}{e.field_of_study}
+                          </span>
+                        )}
                       </h4>
                       {e.description && (
-                        <p
-                          style={{
-                            fontSize: 14,
-                            color: 'var(--fg-3)',
-                            margin: '6px 0 0',
-                            lineHeight: 1.6,
-                          }}
-                        >
+                        <p className="text-sm text-[var(--fg-3)] leading-6 mt-1.5 whitespace-pre-wrap">
                           {e.description}
                         </p>
                       )}
-                    </li>
+                    </TimelineRow>
                   ))}
-                </ul>
-              </Card>
+                </Timeline>
+              </SectionCard>
             )}
 
             <UserReviewsSection userId={userIdNum} />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* RIGHT — sticky sidebar */}
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
             {skills.length > 0 && (
-              <Card padding={20}>
-                <h4
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    margin: 0,
-                    marginBottom: 12,
-                  }}
-                >
-                  Skills
-                </h4>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <SectionCard title="Skills" compact>
+                <div className="flex flex-wrap gap-1.5">
                   {skills.map((s) => (
-                    <Badge key={s} tone="neutral" dot={false}>
+                    <span
+                      key={s}
+                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                    >
                       {s}
-                    </Badge>
+                    </span>
                   ))}
                 </div>
-              </Card>
+              </SectionCard>
             )}
 
             {languages.length > 0 && (
-              <Card padding={20}>
-                <h4
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--fg-1)',
-                    margin: 0,
-                    marginBottom: 12,
-                  }}
-                >
-                  Languages
-                </h4>
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
+              <SectionCard title="Languages" compact>
+                <ul className="flex flex-col gap-2">
                   {languages.map((l, i) => {
                     const lang = l.language ?? l.name ?? '';
+                    const lvl = l.proficiency ?? l.level ?? '';
                     if (!lang) return null;
                     return (
                       <li
                         key={`${lang}-${i}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: 14,
-                          color: 'var(--fg-2)',
-                        }}
+                        className="flex items-center justify-between text-sm"
                       >
-                        <span>{lang}</span>
-                        {l.level && (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: 'var(--fg-4)',
-                            }}
-                          >
-                            {l.level}
+                        <span className="text-[var(--fg-2)]">{lang}</span>
+                        {lvl && (
+                          <span className="text-xs text-[var(--fg-4)] uppercase tracking-wide font-medium">
+                            {lvl}
                           </span>
                         )}
                       </li>
                     );
                   })}
                 </ul>
-              </Card>
+              </SectionCard>
             )}
-          </div>
+          </aside>
         </div>
       </div>
     </ServicesShell>
+  );
+}
+
+/* ===================== presentational pieces ===================== */
+
+function HireBox({
+  profile,
+  userIdNum,
+  router,
+  compact,
+}: {
+  profile: FreelancerProfile;
+  userIdNum: number;
+  router: ReturnType<typeof useRouter>;
+  compact?: boolean;
+}) {
+  const rate = profile.hourly_rate;
+  return (
+    <div
+      className={`rounded-xl border border-[var(--border-2)] bg-white ${
+        compact ? 'px-4 py-3' : 'p-4'
+      } flex items-center gap-4 shadow-sm`}
+    >
+      {rate != null && (
+        <div className="text-right">
+          <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--fg-4)]">
+            From
+          </div>
+          <div className="text-xl font-bold text-[var(--fg-1)] leading-none mt-1">
+            {formatPrice(Math.round(rate * 100), { currency: 'gbp' })}
+            <span className="text-xs font-medium text-[var(--fg-4)] ml-1">
+              /hr
+            </span>
+          </div>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => router.push(`/client/HireFreelancer/${userIdNum}`)}
+        className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition cursor-pointer whitespace-nowrap"
+      >
+        Hire me
+      </button>
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <Card padding={16}>
+      <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--fg-4)]">
+        {label}
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-1">
+        <span className="text-xl font-bold text-[var(--fg-1)]">{value}</span>
+        {sub && (
+          <span className="text-xs text-[var(--fg-4)] font-medium">{sub}</span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function SectionCard({
+  title,
+  children,
+  compact,
+}: {
+  title: string;
+  children: React.ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <Card padding={compact ? 18 : 24}>
+      <h3 className="text-[15px] font-bold text-[var(--fg-1)] mb-3">{title}</h3>
+      {children}
+    </Card>
+  );
+}
+
+function Timeline({ children }: { children: React.ReactNode }) {
+  return <ul className="flex flex-col gap-5">{children}</ul>;
+}
+
+function TimelineRow({
+  period,
+  children,
+}: {
+  period: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="relative pl-6">
+      <span className="absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500" />
+      <span className="absolute left-[5px] top-5 bottom-[-20px] w-px bg-[var(--border-2)] last:hidden" />
+      <div className="text-xs font-medium text-[var(--fg-4)] uppercase tracking-wide mb-1">
+        {period}
+      </div>
+      {children}
+    </li>
   );
 }
 

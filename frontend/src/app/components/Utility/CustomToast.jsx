@@ -50,7 +50,10 @@ export default function CustomToast({ title, message, type = "success" }) {
 
       {/* Text */}
       <div className="flex flex-col">
-        <p className="text-sm text-gray-800 font-sans">{title}</p>
+        <p className="text-sm text-gray-800 font-sans font-semibold">{String(title ?? "")}</p>
+        {message ? (
+          <p className="text-xs text-gray-600 font-sans mt-0.5">{String(message)}</p>
+        ) : null}
       </div>
     </div>
   );
