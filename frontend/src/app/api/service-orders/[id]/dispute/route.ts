@@ -7,8 +7,16 @@ import { serviceOrderDisputes } from '@/lib/db/schema/services';
 import { InvalidTransitionError, transitionServiceOrder } from '@/lib/orders';
 import { notifyOrderDisputed } from '@/lib/email/notifications';
 
+const AttachmentSchema = z.object({
+  r2Key: z.string().min(1),
+  filename: z.string().min(1),
+  size: z.number().int().positive(),
+  mime: z.string().min(1),
+});
+
 const DisputeSchema = z.object({
   reason: z.string().trim().min(1).max(2000),
+  attachments: z.array(AttachmentSchema).min(1, 'At least one evidence file is required'),
 });
 
 const DISPUTABLE_FROM = new Set(['delivered', 'revision_requested']);
@@ -62,6 +70,7 @@ export async function POST(
           orderId: order.id,
           raisedBy: session.user.id,
           reason: parsed.data.reason,
+          attachments: parsed.data.attachments,
         })
         .returning();
 

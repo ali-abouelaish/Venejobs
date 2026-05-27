@@ -4,9 +4,9 @@ import { eq } from 'drizzle-orm';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { auth } from '@/lib/auth';
-import { assertAdminAccess, assertServiceOrderParticipant } from '@/lib/assertions';
+import { assertAdminAccess } from '@/lib/assertions';
 import { db } from '@/lib/db/drizzle';
-import { serviceOrderDeliveries, serviceOrderDisputes } from '@/lib/db/schema/services';
+import { contractOrderDisputes, contractOrders } from '@/lib/db/schema/contracts';
 
 interface StoredAttachment {
   r2Key: string;
@@ -16,29 +16,31 @@ interface StoredAttachment {
 }
 
 /**
- * GET /api/service-orders/:id/attachments?key=<r2Key>
+ * GET /api/contracts/:contractId/dispute-attachments?key=<r2Key>
  *
  * Returns a 302 redirect to a short-lived presigned R2 GET URL for the
- * requested attachment. Authorized only when:
- *  1. The caller is a participant of the order (client or freelancer)
- *  2. The r2Key actually belongs to one of the deliveries on this order
- *     (prevents the endpoint from being used as a generic R2 reader)
+ * requested dispute-evidence attachment. Authorized only when:
+ *  1. The caller is the client or freelancer on the contract order, OR
+ *     is an admin (admins need access while resolving disputes).
+ *  2. The r2Key actually belongs to one of the disputes on this contract
+ *     order (prevents using this endpoint as a generic R2 reader).
  *
- * This keeps the bucket private while letting the participants click
- * download links from the order detail page.
+ * Mirrors the service-order attachments route. There is no
+ * contract_order_deliveries table — contracts have no separate delivery
+ * artifacts — so this endpoint only serves dispute evidence.
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ contractId: string }> },
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id: orderId } = await params;
-  if (!z.string().uuid().safeParse(orderId).success) {
-    return NextResponse.json({ error: 'Invalid order id' }, { status: 400 });
+  const { contractId } = await params;
+  if (!z.string().uuid().safeParse(contractId).success) {
+    return NextResponse.json({ error: 'Invalid contract id' }, { status: 400 });
   }
 
   const r2Key = req.nextUrl.searchParams.get('key');
@@ -46,31 +48,35 @@ export async function GET(
     return NextResponse.json({ error: 'Missing key' }, { status: 400 });
   }
 
-  const isAdmin = await assertAdminAccess(session.user.id);
-  if (!isAdmin) {
-    const access = await assertServiceOrderParticipant(orderId, session.user.id);
-    if (!access) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
+  const orders = await db
+    .select({
+      id: contractOrders.id,
+      clientId: contractOrders.clientId,
+      freelancerId: contractOrders.freelancerId,
+    })
+    .from(contractOrders)
+    .where(eq(contractOrders.contractId, contractId))
+    .limit(1);
+  const order = orders[0];
+  if (!order) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // Confirm the requested r2Key appears in one of this order's deliveries
-  // or dispute evidence rows. attachments column is jsonb; iterate in JS
-  // rather than crafting a JSON query, since the per-order count is small.
-  const [deliveries, disputes] = await Promise.all([
-    db
-      .select({ attachments: serviceOrderDeliveries.attachments })
-      .from(serviceOrderDeliveries)
-      .where(eq(serviceOrderDeliveries.orderId, orderId)),
-    db
-      .select({ attachments: serviceOrderDisputes.attachments })
-      .from(serviceOrderDisputes)
-      .where(eq(serviceOrderDisputes.orderId, orderId)),
-  ]);
+  const isAdmin = await assertAdminAccess(session.user.id);
+  const isParticipant =
+    session.user.id === order.clientId || session.user.id === order.freelancerId;
+  if (!isAdmin && !isParticipant) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const disputes = await db
+    .select({ attachments: contractOrderDisputes.attachments })
+    .from(contractOrderDisputes)
+    .where(eq(contractOrderDisputes.contractOrderId, order.id));
 
   const allKeys = new Set<string>();
-  for (const row of [...deliveries, ...disputes]) {
-    const list = (row.attachments ?? []) as StoredAttachment[];
+  for (const d of disputes) {
+    const list = (d.attachments ?? []) as StoredAttachment[];
     for (const a of list) {
       if (a?.r2Key) allKeys.add(a.r2Key);
     }

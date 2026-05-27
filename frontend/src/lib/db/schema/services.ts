@@ -210,6 +210,9 @@ export const serviceOrderDisputes = pgTable("service_order_disputes", {
   orderId: uuid("order_id").notNull(),
   raisedBy: integer("raised_by").notNull(),
   reason: text().notNull(),
+  // [{ r2Key, filename, size, mime }, ...] — evidence files uploaded
+  // when the dispute was raised. Same shape as service_order_deliveries.
+  attachments: jsonb().default(sql`'[]'::jsonb`).notNull(),
   resolution: text(),
   resolvedBy: integer("resolved_by"),
   resolvedAt: timestamp("resolved_at", { withTimezone: true, mode: "string" }),

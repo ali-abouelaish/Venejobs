@@ -182,6 +182,7 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
   const [revMsg, setRevMsg] = useState('');
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
+  const [disputeFiles, setDisputeFiles] = useState<UploadedFile[]>([]);
   const [deliverOpen, setDeliverOpen] = useState(false);
   // Set when the client's Accept just succeeded so ReviewsBlock can
   // auto-open the review form (once it has loaded existing reviews).
@@ -608,36 +609,54 @@ function OrderInner({ id, data, reload }: { id: string; data: OrderDetail; reloa
 
       <Dialog
         open={disputeOpen}
-        onClose={() => setDisputeOpen(false)}
+        onClose={() => { setDisputeOpen(false); setDisputeFiles([]); }}
         title="Raise a dispute"
         subtitle="Disputes pause the auto-accept timer and go to an admin for review. Try a revision request first if possible."
-        maxWidth={540}
+        maxWidth={620}
         footer={
           <>
-            <Button variant="outline" onClick={() => setDisputeOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setDisputeOpen(false); setDisputeFiles([]); }}>Cancel</Button>
             <Button
               danger
               loading={busy}
-              disabled={disputeReason.trim().length < 20}
+              disabled={
+                disputeReason.trim().length < 20
+                || disputeFiles.some(f => f.status === 'uploading')
+                || disputeFiles.some(f => f.status === 'error')
+                || disputeFiles.filter(f => f.status === 'done').length === 0
+              }
               onClick={async () => {
-                await callAction('dispute', { reason: disputeReason });
+                const attachments = disputeFiles
+                  .filter(f => f.status === 'done')
+                  .map(f => ({ r2Key: f.r2Key, filename: f.filename, size: f.size, mime: f.mime }));
+                await callAction('dispute', { reason: disputeReason, attachments });
                 setDisputeOpen(false);
                 setDisputeReason('');
+                setDisputeFiles([]);
               }}
             >
-              Raise dispute
+              {disputeFiles.some(f => f.status === 'uploading') ? 'Uploading...' : 'Raise dispute'}
             </Button>
           </>
         }
       >
-        <FormField label="Reason for dispute" required hint="At least 20 characters. Reviewers read this first.">
-          <Textarea
-            value={disputeReason}
-            onChange={setDisputeReason}
-            rows={5}
-            placeholder="The delivered files do not match the brief in two specific ways: (1)..."
-          />
-        </FormField>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <FormField label="Reason for dispute" required hint="At least 20 characters. Reviewers read this first.">
+            <Textarea
+              value={disputeReason}
+              onChange={setDisputeReason}
+              rows={5}
+              placeholder="The delivered files do not match the brief in two specific ways: (1)..."
+            />
+          </FormField>
+          <FormField
+            label="Evidence"
+            required
+            hint="Attach at least one file (screenshot, recording, document) showing the issue. Reviewers use this to decide."
+          >
+            <AttachmentUploader files={disputeFiles} onChange={setDisputeFiles} />
+          </FormField>
+        </div>
       </Dialog>
 
       <DeliverDialog

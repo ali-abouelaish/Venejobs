@@ -15,6 +15,14 @@ import {
 import { toast } from 'react-toastify';
 import type { ContractData, ContractRevision } from '@/app/hooks/useMessages';
 import ContractComposer from './ContractComposer';
+import { AttachmentUploader, type UploadedFile } from '@/app/services-ui';
+
+interface DisputeAttachment {
+  r2Key: string;
+  filename: string;
+  size: number;
+  mime: string;
+}
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -493,17 +501,22 @@ function DisputeSheet({
   onCancel,
   busy,
 }: {
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string, attachments: DisputeAttachment[]) => void;
   onCancel: () => void;
   busy: boolean;
 }) {
   const [reason, setReason] = useState('');
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const trimmed = reason.trim();
+  const uploading = files.some(f => f.status === 'uploading');
+  const hasError = files.some(f => f.status === 'error');
+  const doneFiles = files.filter(f => f.status === 'done');
+  const canSubmit = !busy && !uploading && !hasError && trimmed.length > 0 && doneFiles.length > 0;
   return (
     <div className="border border-red-200 bg-red-50 rounded-lg p-3">
       <p className="text-[13px] font-semibold text-red-900 mb-1">Raise a dispute</p>
       <p className="text-[12px] text-[#374151] mb-2">
-        Funds will be frozen and our team will review. Briefly explain what&rsquo;s wrong.
+        Funds will be frozen and our team will review. Briefly explain what&rsquo;s wrong and attach evidence.
       </p>
       <textarea
         value={reason}
@@ -513,13 +526,25 @@ function DisputeSheet({
         placeholder="What happened?"
         className="w-full px-2 py-1.5 text-[12px] border border-[#D1D5DB] rounded-md focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
       />
+      <div className="mt-3">
+        <p className="text-[12px] font-semibold text-red-900 mb-1">
+          Evidence <span className="text-red-700">*</span>
+        </p>
+        <p className="text-[11px] text-[#374151] mb-2">
+          At least one file (screenshot, recording, document) is required.
+        </p>
+        <AttachmentUploader files={files} onChange={setFiles} />
+      </div>
       <div className="mt-3 flex gap-2">
         <button
-          onClick={() => onConfirm(trimmed)}
-          disabled={busy || trimmed.length === 0}
+          onClick={() => onConfirm(
+            trimmed,
+            doneFiles.map(f => ({ r2Key: f.r2Key, filename: f.filename, size: f.size, mime: f.mime })),
+          )}
+          disabled={!canSubmit}
           className="flex-1 px-3 py-2 bg-red-600 text-white text-[13px] font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
         >
-          {busy ? 'Submitting…' : 'Open dispute'}
+          {busy ? 'Submitting…' : uploading ? 'Uploading…' : 'Open dispute'}
         </button>
         <button
           onClick={onCancel}
@@ -717,8 +742,8 @@ export default function ContractSidePanel({
   }, [postAction]);
 
   const handleDispute = useCallback(
-    async (reason: string) => {
-      const updated = await postAction('dispute', { reason }, 'dispute');
+    async (reason: string, attachments: DisputeAttachment[]) => {
+      const updated = await postAction('dispute', { reason, attachments }, 'dispute');
       if (updated) {
         setActiveSheet('none');
         toast.success('Dispute opened. Our team will review.');

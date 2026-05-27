@@ -7,12 +7,14 @@ import { serviceOrders, services } from '@/lib/db/schema/services';
 /**
  * Returns true if userId is either the freelancer on the proposal,
  * the client on the job linked to this conversation, or a participant
- * in a direct (proposal-less) conversation.
+ * in a direct (proposal-less) conversation. Admins are allowed through
+ * so dispute-handling routes can surface the chat as evidence.
  */
 export async function assertConversationAccess(
   conversationId: string,
   userId: number,
 ): Promise<boolean> {
+  if (await assertAdminAccess(userId)) return true;
   const rows = await sql`
     SELECT c.id
     FROM conversations c

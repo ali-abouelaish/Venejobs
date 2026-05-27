@@ -14,8 +14,16 @@ import {
 import { fetchFullContract, broadcastContract } from '@/lib/contracts';
 import { notifyContractDisputed } from '@/lib/email/notifications';
 
+const AttachmentSchema = z.object({
+  r2Key: z.string().min(1),
+  filename: z.string().min(1),
+  size: z.number().int().positive(),
+  mime: z.string().min(1),
+});
+
 const DisputeSchema = z.object({
   reason: z.string().trim().min(1, 'Reason required').max(2000),
+  attachments: z.array(AttachmentSchema).min(1, 'At least one evidence file is required'),
 });
 
 const DISPUTABLE_FROM = new Set(['paid', 'delivered']);
@@ -103,6 +111,7 @@ export async function POST(
         contractOrderId: order.id,
         raisedBy: session.user.id,
         reason: parsed.data.reason,
+        attachments: parsed.data.attachments,
       });
       await transitionContractOrder(order.id, order.state, 'disputed', {}, tx);
     });

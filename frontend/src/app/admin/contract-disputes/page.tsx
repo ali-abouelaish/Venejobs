@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   AdminLayout,
   AdminTable,
@@ -219,11 +220,26 @@ function Inner() {
                   </td>
                   <td><span style={{ fontSize: 12, color: 'var(--fg-4)' }}>{relTimeOrFallback(d.createdAt)}</span></td>
                   <td style={{ textAlign: 'right' }}>
-                    {d.resolution ? (
-                      <Badge tone="success" size="sm">{d.resolution.replace('_', ' ')}</Badge>
-                    ) : (
-                      <Button size="sm" tone="client" onClick={() => openResolve(d)}>Resolve</Button>
-                    )}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                      {d.resolution && (
+                        <Badge tone="success" size="sm">{d.resolution.replace('_', ' ')}</Badge>
+                      )}
+                      <Link
+                        href={`/admin/contract-disputes/${d.id}`}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '5px 10px', borderRadius: 6,
+                          border: '1px solid var(--border-2)',
+                          fontSize: 12, color: 'var(--fg-2)', textDecoration: 'none',
+                        }}
+                      >
+                        View case
+                        <Icon name="arrowRight" size={12} />
+                      </Link>
+                      {!d.resolution && (
+                        <Button size="sm" tone="client" onClick={() => openResolve(d)}>Resolve</Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
