@@ -28,6 +28,9 @@ npm run dev   # concurrently runs frontend + backend + ws-server
 
 Companion docs:
 
+- `PROJECT_NOTES.md` — **start here.** Living-context doc: current state,
+  load-bearing invariants, verified drift from this file, and open
+  questions. Confidence-graded and dated; keep it updated.
 - `README.md` — first-time setup and env var template.
 - `MIGRATION.md` — Drizzle ↔ Sequelize ownership boundary and the
   rules for generating migrations.

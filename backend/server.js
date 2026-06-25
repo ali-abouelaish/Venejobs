@@ -39,6 +39,12 @@ const allowedOrigins = [
   "https://app.venejob.com",
   "http://localhost:3000",
   "http://localhost:5173",
+  // Deployed frontend origin(s), comma-separated. Set FRONTEND_URL in the
+  // hosting env (e.g. https://venejobs-web.onrender.com, plus the custom
+  // domain once DNS is pointed). Unset locally → spreads to nothing.
+  ...(process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(",").map((s) => s.trim()).filter(Boolean)
+    : []),
 ];
 
 app.use(helmet());

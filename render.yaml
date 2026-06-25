@@ -1,0 +1,165 @@
+# Render Blueprint for Venejobs — 3 web services + 1 cron job.
+# Spec: https://render.com/docs/blueprint-spec
+#
+# SECRETS: every sensitive value is `sync: false`, so Render prompts for it
+# in the dashboard on first apply — NOTHING sensitive lives in this file.
+#
+# FILL-AFTER-FIRST-DEPLOY: some env vars are the .onrender.com URLs of the
+# OTHER services, which don't exist until the first deploy. They're marked
+# `sync: false` with a comment; set them once the URLs exist, then trigger a
+# manual redeploy of `venejobs-web` (the NEXT_PUBLIC_* vars bake into the
+# client bundle at BUILD time, so they only take effect on a rebuild).
+#
+# All four services share `region: virginia` — REQUIRED for private
+# networking, and closest to the Neon us-east-1 database.
+#
+# See DEPLOYMENT.md for the full step-by-step.
+
+services:
+  # ── Express backend: auth/login, jobs, proposals, orders, lookups ──────────
+  - type: web
+    name: venejobs-api
+    runtime: node
+    region: virginia
+    plan: starter            # always-on (free tier sleeps). ~$7/mo.
+    branch: main
+    buildCommand: npm install
+    # `npm -w backend run start` = cross-env NODE_ENV=production node server.js,
+    # run from the backend workspace. The server binds process.env.PORT, which
+    # Render injects — so do NOT set PORT here.
+    startCommand: npm -w backend run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_NAME
+        value: Admin
+      - key: ADMIN_LASTNAME
+        value: User
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      # CORS allow-list addition: the public URL of venejobs-web.
+      # e.g. https://venejobs-web.onrender.com   (FILL AFTER FIRST DEPLOY)
+      - key: FRONTEND_URL
+        sync: false
+
+  # ── WebSocket relay: public WSS + private internal broadcast/presence ──────
+  - type: web
+    name: venejobs-ws
+    runtime: node
+    region: virginia
+    plan: starter
+    branch: main
+    # --include=dev so tsx (a devDependency) is installed.
+    buildCommand: npm install --include=dev
+    # No --env-file: env comes from Render, not a .env file on disk.
+    startCommand: npx tsx ws-server/index.ts
+    envVars:
+      # Public WS binds Render's default web port (10000). Browsers connect to
+      # wss://venejobs-ws.onrender.com .
+      - key: WS_PORT
+        value: "10000"
+      # Internal broadcast/presence HTTP server — reached ONLY over Render's
+      # private network by venejobs-web. 4001 is not a Render-reserved port.
+      - key: WS_INTERNAL_PORT
+        value: "4001"
+      - key: DATABASE_URL
+        sync: false
+      - key: WS_SECRET
+        sync: false
+      - key: WS_INTERNAL_SECRET
+        sync: false
+
+  # ── Next.js frontend: UI + the Drizzle-backed API surface ──────────────────
+  - type: web
+    name: venejobs-web
+    runtime: node
+    region: virginia
+    plan: starter            # bump to `standard` if `next start` OOMs at 512MB.
+    branch: main
+    # --include=dev so typescript/tailwind/tsx (devDependencies) are present for
+    # `next build` and the Drizzle migrate step.
+    buildCommand: npm install --include=dev && npm -w frontend run build
+    # Apply Drizzle migrations (incl. 0011_dispute_evidence) AFTER build, before
+    # the new version goes live. Idempotent — tracked in drizzle.__drizzle_migrations.
+    preDeployCommand: npm -w frontend run db:migrate
+    # next start respects $PORT (Render injects it). The package script hardcodes
+    # -p 3001, so bypass it and pass Render's port.
+    startCommand: cd frontend && npx next start -p $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: WS_SECRET
+        sync: false
+      - key: WS_INTERNAL_SECRET
+        sync: false
+      # Private address of venejobs-ws on its internal port. Get the internal
+      # hostname from venejobs-ws → Connect → Internal in the dashboard, e.g.
+      # http://venejobs-ws-xxxx:4001      (FILL AFTER FIRST DEPLOY)
+      - key: WS_INTERNAL_URL
+        sync: false
+      # ── Public URLs: baked into the client bundle at BUILD time. Set these,
+      #    then MANUALLY REDEPLOY venejobs-web so they take effect. ──
+      - key: NEXT_PUBLIC_BASE_URL
+        sync: false   # https://venejobs-api.onrender.com
+      - key: NEXT_PUBLIC_API_URL
+        sync: false   # https://venejobs-api.onrender.com/api
+      - key: NEXT_PUBLIC_WS_URL
+        sync: false   # wss://venejobs-ws.onrender.com
+      # ── Cloudflare R2 — NOTE: the code reads R2_BUCKET_NAME (not R2_BUCKET) ──
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      # ── Stripe ──
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      # Signing secret of the webhook you create in the Stripe dashboard
+      # pointing at https://venejobs-web.onrender.com/api/webhooks/stripe
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+
+  # ── Cron: auto-accept past-deadline orders, payouts, publish pending reviews ─
+  - type: cron
+    name: venejobs-cron
+    runtime: node
+    region: virginia
+    plan: starter
+    branch: main
+    schedule: "*/15 * * * *"        # every 15 minutes
+    buildCommand: echo "no build needed"
+    # POSTs the auth header to the web service's cron route. curl is available
+    # in Render's runtime image.
+    startCommand: curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET" "$WEB_URL/api/cron/auto-accept"
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+      - key: WEB_URL
+        sync: false   # https://venejobs-web.onrender.com   (FILL AFTER FIRST DEPLOY)
