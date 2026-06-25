@@ -37,7 +37,7 @@ Companion docs:
 ## Services and how to start them
 
 | Service   | Port  | Start (from root)                | Notes |
-|-----------|-------|----------------------------------|-------|
+|-----------|-------|----------------------------------|---------|
 | frontend  | 5173  | `npm -w frontend run dev`        | `next dev -p 5173` |
 | backend   | 4000  | `npm -w backend run dev`         | `nodemon server.js`; auto-runs Sequelize migrations in `NODE_ENV=development` |
 | ws-server | 4002  | `npm -w ws-server run dev`       | Public WebSocket port |
@@ -66,7 +66,11 @@ npm -w frontend run db:migrate   # apply migrations (scripts/db-migrate.ts)
 npm -w frontend run db:studio    # drizzle-kit studio
 ```
 
-No test suite.
+**E2E test suite** at `scripts/e2e/` (root-level, not inside a workspace):
+- `run-all.mjs` — sequential runner; reads `frontend/.env.local`
+- `01_auth` → `07_uploads` — covers auth, freelancer profile, jobs, proposals, messaging, contracts, uploads
+- `check-migrations.mjs` — verifies migration state
+- Run: `node --env-file=frontend/.env.local scripts/e2e/run-all.mjs`
 
 ### Environment variables (`frontend/.env.local`)
 
@@ -90,23 +94,29 @@ Pages:
 - `page.jsx` — landing
 - `auth/{signin,signup,forgot-password}/`
 - `client/` — client dashboard: `jobpost`, `freelancerList`, `FreelancerProfile`,
-  `HireFreelancer`, `HirePayment`, `InviteTalent`, `JobDetail`, `Service`,
+  `HireFreelancer`, `HireFreelancer/[userId]` (dynamic — needed for "Hire me" links),
+  `HirePayment`, `InviteTalent`, `JobDetail`, `Service`,
   `ServiceDetail`, `orders`, `chat`, `billingMethod`
 - `freelancer/` — freelancer dashboard: `home`, `jobSearch`, `JobDetail`,
   `AllContract`, `profileData`, `addProfileDetails`, `AddService`,
-  `services`, `orders`, `onboarding`, `finances`, `chat`
+  `services`, `orders`, `onboarding`, `finances`, `chat`,
+  `profile/edit` (single-page profile editor, replaces the old multi-step flow)
 - `services/` (public browse) + `services/[id]`
 - `services-ui/` — shared services UI components, lib, theme tokens
 - `contracts/[contractId]` — contract detail
 - `orders/[id]` — service-order detail (used by both participants)
-- `admin/` — `services`, `disputes`, `contract-disputes`, `users`,
-  `finances`, `orders`, `accept-invite`
+- `admin/` — `services`, `disputes`, `disputes/[id]`, `contract-disputes`,
+  `contract-disputes/[id]`, `users`, `finances`, `orders`, `accept-invite`.
+  `disputes/[id]` and `contract-disputes/[id]` include a `DisputeChat` panel
+  for admin ↔ participant messaging.
 - `conversations/`, `inbox/`, `messages/` — chat surfaces
 - `profile/`, `about/`
 
 Shared UI: `src/app/components/` (organised by domain — `auth/`, `Chat/`,
 `Client/`, `Freelancer/`, `Header/`, `Footer/`, `home/`, `jobs/`,
 `messages/`, `navbar/`, `profile/`, `reviews/`, `Skeletons/`, etc.).
+Admin-only shared component: `src/app/admin/_components/DisputeChat.tsx`
+(real-time admin ↔ participant chat, reused by both dispute detail pages).
 Layouts in `src/app/layout/` (`ClientLayout.jsx`, `FreelancerLayout.jsx`,
 `ClientProfileLayout.jsx`, `FreelanceProfileLayout.jsx`). Routes table
 centralised in `src/app/routes.js`.
@@ -135,7 +145,7 @@ Hooks: `src/app/hooks/useMessages.ts` and `src/hooks/`
 | `db/schema.ts` | Legacy mirror — Sequelize-owned tables in Drizzle form |
 | `db/schema/{stripe,services,reviews,contracts,adminInvites}.ts` | Drizzle-owned tables, one module per feature |
 | `db/relations.ts` | Drizzle relations |
-| `db/drizzle-migrations/*.sql` + `meta/` | Migration history (0000–0010) |
+| `db/drizzle-migrations/*.sql` + `meta/` | Migration history (0000–0011) |
 | `auth.ts` | `auth()` reads `token` cookie, verifies with `JWT_SECRET`, returns `{ user: { id, name, email } } \| null`. Blocks suspended users. Tolerates the legacy triple-shape JWT payload. |
 | `assertions.ts` | Per-resource access checks: `assertConversationAccess`, `assertJobOwnership`, `assertProposalClientAccess`, `assertServiceAccess`, `assertServiceOrderAccess`, `assertServiceOrderParticipant`, `assertAdminAccess` |
 | `stripe.ts` | Configured `Stripe` client |
@@ -167,14 +177,18 @@ returning a session.
 | Path | Notes |
 |---|---|
 | `auth/*` | (Express still owns login/signup; no /api/auth here yet) |
-| `users/me/avatar`, `users/[id]/reviews` | User-facing reads |
+| `users/me/avatar`, `users/me/profile`, `users/[id]/reviews` | User-facing reads/writes; `me/profile` is GET+PUT for client profile (avatar + DOB + address) |
+| `freelancer/profile` | GET+PUT authenticated freelancer profile (Drizzle, transactional, zod-validated). Replaces Express `/api/freelancer/` save. |
+| `freelancer/[userId]/profile` | Public GET — mirrors the Express shape for the client-side profile view |
 | `jobs/[jobId]/proposals` | Job-scoped proposals |
-| `proposals/`, `proposals/mine`, `proposals/[id]/{accept,decline}` | Proposal CRUD |
-| `conversations/direct`, `conversations/[id]/{messages,read}`, `conversations/[id]/messages/[messageId]` | Messaging |
+| `proposals/`, `proposals/mine`, `proposals/[id]/{accept,decline}` | Proposal CRUD. On POST, cover letter is seeded as the freelancer's first message in the conversation. |
+| `conversations/direct`, `conversations/[id]/{messages,read}`, `conversations/[id]/messages/[messageId]` | Messaging. GET messages now returns `conversation: { id, proposal_id, freelancer_id, client_id }` metadata. POST enforces a one-message gate for freelancers in proposal-bound chats until the client replies (`code: 'FREELANCER_AWAITING_CLIENT'`, 403). |
 | `inbox/` | Inbox listing |
 | `contracts/`, `contracts/my`, `contracts/[contractId]/{sign,decline,cancel,submit,deliver,accept,dispute,request-revision,checkout,revisions}` | Contracts + contract-order flow |
+| `contracts/[contractId]/dispute` | File a dispute with optional evidence attachments (same `{ r2Key, filename, size, mime }[]` shape as deliveries) |
+| `contracts/[contractId]/dispute-attachments` | Presign / upload evidence files for an open contract dispute |
 | `services/`, `services/mine`, `services/[id]/{addons,submit-for-review}` | Services marketplace |
-| `service-orders/checkout`, `service-orders/{incoming,outgoing}`, `service-orders/[id]/{accept,deliver,cancel,dispute,request-revision,buy-revisions,attachments,reviews}` | Service-order lifecycle |
+| `service-orders/checkout`, `service-orders/{incoming,outgoing}`, `service-orders/[id]/{accept,deliver,cancel,dispute,request-revision,buy-revisions,attachments,reviews}` | Service-order lifecycle. `dispute` now accepts evidence attachments. |
 | `connect/{account,onboarding-link,dashboard-link,status}` | Stripe Connect for freelancers |
 | `webhooks/stripe` | Stripe webhook (signature + dedupe via `stripe_events`) |
 | `cron/auto-accept` | Auto-accept past-deadline orders. Requires `x-cron-secret: $CRON_SECRET` |
@@ -184,6 +198,8 @@ returning a session.
 | `ws-token/` | Issues short-lived WS tokens signed with `JWT_SECRET` |
 | `set-token/` | Cookie writer (used by backend login redirect) |
 | `admin/{users,services,service-orders,contract-orders,disputes,contract-disputes,finances,overview,invites,orders}` | Admin panel API, gated by `assertAdminAccess` |
+| `admin/disputes/[id]`, `admin/disputes/[id]/messages` | Per-dispute detail and admin↔participant messaging for service-order disputes |
+| `admin/contract-disputes/[id]`, `admin/contract-disputes/[id]/messages` | Same for contract-order disputes |
 
 State-machine note: every transition of `service_orders.state` must go
 through `transitionServiceOrder()` in `lib/orders.ts` (atomic
@@ -239,7 +255,7 @@ Mounted route prefixes:
 | Prefix | Source | Purpose |
 |---|---|---|
 | `/api/auth/` | `routes/authRoutes.js` | signup, login, email verification (6-digit, 10 min), password reset |
-| `/api/jobs/` | `routes/job.routes.js` | job CRUD, status |
+| `/api/jobs/` | `routes/job.routes.js` | job CRUD, status. Both `getAllJobs` and `getJobsByUser` filter `is_active: true` — deactivated postings are excluded from listings. |
 | `/api/lookup/` | `routes/lookup.routes.js` | reference data |
 | `/api/lookup/project-options` | `routes/projectOptions.routes.js` | project sizes/durations/experience levels |
 | `/api/lookup/budget-types` | `routes/budget_types.routes.js` | budget types |
@@ -353,8 +369,8 @@ Schema layout in `frontend/src/lib/db/`:
 - `schema.ts` — Sequelize-mirror **plus** the older messaging/contracts
   tables. Do not split.
 - `schema/stripe.ts` — `stripe_connect_accounts`, `stripe_events`.
-- `schema/services.ts` — 7 services-marketplace tables.
-- `schema/contracts.ts` — `contract_orders`, `contract_order_disputes`.
+- `schema/services.ts` — 7 services-marketplace tables (includes `attachments jsonb` on `service_order_disputes`).
+- `schema/contracts.ts` — `contract_orders`, `contract_order_disputes` (includes `attachments jsonb`).
 - `schema/reviews.ts` — `reviews` (polymorphic over contract OR
   service_order via an XOR check).
 - `schema/adminInvites.ts` — `admin_invites`.
@@ -392,7 +408,9 @@ Sequelize-applied state.
 
 Migration history lives in
 `frontend/src/lib/db/drizzle-migrations/` (`0000_colorful_marauders.sql`
-through `0010_furry_vapor.sql`) with snapshots in `meta/`.
+through `0011_dispute_evidence.sql`) with snapshots in `meta/`.
+`0011` adds `attachments jsonb DEFAULT '[]'` to both `service_order_disputes`
+and `contract_order_disputes` for evidence files uploaded when a dispute is raised.
 
 ### Frontend scripts (`frontend/scripts/`)
 
@@ -453,4 +471,6 @@ tables instead of the services tables.
   pence values for all Stripe API calls (Stripe also uses smallest
   unit). Format only at render time.
 - Centralise route paths in `frontend/src/app/routes.js` when wiring
-  new pages into existing nav.
+  new pages into existing nav. Note: `freelancer.get_started` and
+  `freelancer.edit_profile` both resolve to `/freelancer/profile/edit`
+  (the old `/freelancer/addProfileDetails` multi-step URL is deprecated).
